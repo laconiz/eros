@@ -36,7 +36,7 @@ func (e *nameEncoder) Encode(msg interface{}) (*Event, error) {
 	buf.WriteByte(e.sep)
 	buf.Write(raw)
 
-	return &Event{Meta: meta, Message: msg, Raw: raw, Stream: buf.Bytes()}, nil
+	return &Event{Meta: meta, Msg: msg, Raw: raw, Stream: buf.Bytes()}, nil
 }
 
 var messageIDSize = int(unsafe.Sizeof(MessageID(0)))
@@ -69,7 +69,7 @@ func (e *nameEncoder) Decode(stream []byte) (*Event, error) {
 		return nil, fmt.Errorf("decode message %s error: %w", string(stream), err)
 	}
 
-	return &Event{Meta: meta, Message: msg, Raw: raw, Stream: stream}, nil
+	return &Event{Meta: meta, Msg: msg, Raw: raw, Stream: stream}, nil
 }
 
 func (e *nameEncoder) String(event *Event) string {
@@ -80,7 +80,7 @@ func (e *nameEncoder) String(event *Event) string {
 
 	meta := event.Meta
 	if event.Meta == nil {
-		meta = MetaByMsg(event.Message)
+		meta = MetaByMsg(event.Msg)
 	}
 	if meta == nil {
 		return "invalid event"
@@ -90,9 +90,9 @@ func (e *nameEncoder) String(event *Event) string {
 		return string(event.Stream)
 	}
 
-	raw, err := json.Marshal(event.Message)
+	raw, err := json.Marshal(event.Msg)
 	if err != nil {
-		return fmt.Sprintf("marshal message[%#v] to json error: %v", event.Message, err)
+		return fmt.Sprintf("marshal message[%#v] to json error: %v", event.Msg, err)
 	}
 
 	return fmt.Sprintf("%s%s%s", meta.Name(), string(e.sep), string(raw))

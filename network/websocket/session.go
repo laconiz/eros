@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
+	queue2 "github.com/laconiz/eros/queue"
 	"sync"
 	"time"
 )
@@ -18,9 +19,9 @@ type Session struct {
 	id     network.SessionID // session ID
 	addr   string            // 连接地址
 	conn   *websocket.Conn   // websocket连接
-	queue  *network.Queue    // 写入队列
+	queue  *queue2.Queue     // 写入队列
 	config *SessionConfig    // 配置
-	log    *log.Log          // 日志
+	log    *log.Logger       // 日志
 	data   sync.Map          // 携带信息
 }
 
@@ -143,7 +144,7 @@ func (ses *Session) run(closeFunc func(*Session)) {
 	// 连接成功回调
 	ses.invoke(&network.Event{
 		Meta:    network.MetaConnected,
-		Message: &network.Connected{},
+		Msg:     &network.Connected{},
 		Session: ses,
 	})
 
@@ -166,7 +167,7 @@ func (ses *Session) run(closeFunc func(*Session)) {
 	// 连接断开回调
 	ses.invoke(&network.Event{
 		Meta:    network.MetaDisconnected,
-		Message: &network.Connected{},
+		Msg:     &network.Connected{},
 		Session: ses,
 	})
 }
@@ -185,7 +186,7 @@ func newSession(
 		id:     id,
 		addr:   addr,
 		conn:   conn,
-		queue:  network.NewQueue(config.WriteQueueLen),
+		queue:  queue2.NewQueue(config.WriteQueueLen),
 		config: config,
 		log:    log.Std(logName),
 		data:   sync.Map{},

@@ -43,7 +43,7 @@ func NewNetworkInvoker(log Logger, handlers []interface{}, params ...interface{}
 			// 防止上层逻辑导致的崩溃
 			defer func() {
 				if err := recover(); err != nil {
-					log.Errorf("invoke message[%+v] error: %v", event.Message, err)
+					log.Errorf("invoke message[%+v] error: %v", event.Msg, err)
 				}
 			}()
 
@@ -161,7 +161,7 @@ func (inv *networkHandler) Invoke(event *network.Event) {
 	// 基础参数列表
 	inj := inject.New()
 	inj.SetParent(inv.Injector)
-	inj.Map(event).Map(event.Session).Map(event.Message)
+	inj.Map(event).Map(event.Session).Map(event.Msg)
 
 	// 调用参数生成器
 	for _, getter := range inv.Getters {

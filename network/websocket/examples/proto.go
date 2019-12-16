@@ -3,11 +3,11 @@ package examples
 import "github.com/laconiz/eros/network"
 
 type REQ struct {
-	ID uint
+	ID uint64
 }
 
 type ACK struct {
-	ID uint
+	ID uint64
 }
 
 func init() {

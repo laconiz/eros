@@ -1,6 +1,6 @@
 // 线程安全的消息队列
 
-package network
+package queue
 
 import (
 	"container/list"

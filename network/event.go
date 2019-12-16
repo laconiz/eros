@@ -4,7 +4,7 @@ type HandlerFunc func(*Event)
 
 type Event struct {
 	Meta    *Meta
-	Message interface{}
+	Msg     interface{}
 	Raw     []byte
 	Stream  []byte
 	Session Session

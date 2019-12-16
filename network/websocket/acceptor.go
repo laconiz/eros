@@ -15,7 +15,7 @@ type Acceptor struct {
 	sessionMgr *network.SessionMgr // 连接管理器
 	server     *http.Server        // HTTP服务
 	config     AcceptorConfig      // 配置
-	log        *log.Log            // 日志
+	log        *log.Logger         // 日志
 	mutex      sync.Mutex
 }
 

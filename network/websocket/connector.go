@@ -12,7 +12,7 @@ type Connector struct {
 	session      *Session        // websocket连接
 	config       ConnectorConfig // 配置
 	connectTimes int             // 重连次数
-	log          *log.Log        // 日志
+	log          *log.Logger     // 日志
 	mutex        sync.Mutex
 }
 
@@ -52,8 +52,8 @@ func (cnt *Connector) connect() {
 		go func() {
 			ses := newSession(connectorSessionID, cnt.config.Name, "", nil, &cnt.config.Session)
 			ses.invoke(&network.Event{
-				Meta:    network.MetaConnectFailed,
-				Message: &network.ConnectFailed{},
+				Meta: network.MetaConnectFailed,
+				Msg:  &network.ConnectFailed{},
 			})
 		}()
 
