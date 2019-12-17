@@ -60,6 +60,7 @@ func (cnt *Connector) connect() {
 		return
 	}
 
+	cnt.connectTimes = 0
 	ses := newSession(connectorSessionID, cnt.config.Name, cnt.config.Addr, conn, &cnt.config.Session)
 	cnt.session = ses
 	go ses.run(cnt.onSessionClose)

@@ -57,6 +57,7 @@ func RegisterMetaEx(id MessageID, msg interface{}, codec Codec) error {
 	metaByName[typo.String()] = meta
 	metaByType[typo] = meta
 
+	logger.Infof("meta: %-12d %-30s %#v", id, typo, codec)
 	return nil
 }
 

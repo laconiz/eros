@@ -14,7 +14,7 @@ type SessionConfig struct {
 	ReadTimeout   time.Duration   // 读取超时
 	WriteTimeout  time.Duration   // 写入超时
 	WriteQueueLen int             // 写入队列大小
-	Encoder       network.Encoder // 编码器
+	Encoder       Encoder         // 编码器
 	Invoker       network.Invoker // 消息调用器
 }
 
@@ -37,11 +37,11 @@ func (c *SessionConfig) make() {
 	}
 
 	if c.Encoder == nil {
-		c.Encoder = network.NameEncoder
+		c.Encoder = NameEncoder
 	}
 
 	if c.Invoker == nil {
-		c.Invoker = network.DefaultInvoker
+		c.Invoker = network.NewStdInvoker()
 	}
 }
 

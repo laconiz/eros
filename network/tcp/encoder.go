@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/laconiz/eros/json"
 	"github.com/laconiz/eros/network"
 	"net"
 	"reflect"
-	"unsafe"
 )
 
 type Encoder interface {
 	Encode(net.Conn) (*network.Event, error)
 	Decode(*network.Event) ([]byte, error)
+	String(*network.Event) string
 }
 
 type StdEncoder struct {
@@ -74,6 +75,7 @@ func (enc *StdEncoder) Decode(event *network.Event) ([]byte, error) {
 		if meta == nil {
 			return nil, fmt.Errorf("invalid message: %#v", event.Msg)
 		}
+		event.Meta = meta
 
 		// 序列化消息
 		raw, err := meta.Codec().Encode(event.Msg)
@@ -98,15 +100,6 @@ func (enc *StdEncoder) Decode(event *network.Event) ([]byte, error) {
 		}
 
 		event.Stream = buf.Bytes()
-
-	} else {
-
-		msgSize := int(unsafe.Sizeof(network.MessageID(0)))
-		if len(event.Stream) <= msgSize {
-			return nil, fmt.Errorf("invalid stream size: %d", len(event.Stream))
-		}
-
-		event.Raw = event.Stream[msgSize:]
 	}
 
 	buf := &bytes.Buffer{}
@@ -129,8 +122,52 @@ func (enc *StdEncoder) Decode(event *network.Event) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (enc *StdEncoder) String() string {
+func (enc *StdEncoder) String(event *network.Event) string {
 
+	if event.Meta != nil && event.Msg != nil && event.Raw != nil {
+
+		if event.Meta.Codec() == network.JsonCodec {
+			return fmt.Sprintf("%s-%s", event.Meta, string(event.Raw))
+		}
+
+		raw, err := json.Marshal(event.Msg)
+		if err != nil {
+			return fmt.Sprintf("%s-%#v: %v", event.Meta, event.Msg, err)
+		}
+		return fmt.Sprintf("%s-%s", event.Meta, string(raw))
+	}
+
+	if event.Stream != nil {
+
+		buf := bytes.NewBuffer(event.Stream)
+
+		var id network.MessageID
+		if err := binary.Read(buf, binary.LittleEndian, &id); err != nil {
+			return string(event.Stream)
+		}
+
+		meta := network.MetaByID(id)
+		if meta == nil {
+			return string(event.Stream)
+		}
+
+		if meta.Codec() == network.JsonCodec {
+			return fmt.Sprintf("%s-%s", meta, string(buf.Bytes()))
+		}
+
+		msg := reflect.New(meta.Type()).Interface()
+		if err := meta.Codec().Decode(buf.Bytes(), msg); err != nil {
+			return string(event.Stream)
+		}
+
+		raw, err := json.Marshal(msg)
+		if err != nil {
+			return fmt.Sprintf("%s-%#v: %v", meta, msg, err)
+		}
+		return fmt.Sprintf("%s-%s", meta, string(raw))
+	}
+
+	return fmt.Sprintf("invalid event: %#v", event)
 }
 
 type EncoderMaker interface {

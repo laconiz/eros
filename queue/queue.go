@@ -86,7 +86,7 @@ func (q *Queue) Close() {
 }
 
 // 创建一个消息队列
-func NewQueue(cap int) *Queue {
+func New(cap int) *Queue {
 
 	q := &Queue{cap: cap}
 	q.cond = sync.NewCond(&q.mutex)

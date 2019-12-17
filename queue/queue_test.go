@@ -7,7 +7,7 @@ import (
 
 func TestQueue(t *testing.T) {
 
-	queue := NewQueue(10)
+	queue := New(10)
 
 	for i := 0; i < 10; i++ {
 		if queue.Add(i) != nil {
@@ -24,7 +24,7 @@ func TestQueue(t *testing.T) {
 		t.FailNow()
 	}
 
-	queue = NewQueue(0)
+	queue = New(0)
 
 	count := 0
 

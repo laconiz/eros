@@ -98,7 +98,7 @@ func (ses *Session) read() {
 		}
 
 		// 消息回调
-		ses.log.Infof("read: %s", conf.Encoder.String(event))
+		// ses.log.Infof("read: %s", conf.Encoder.String(event))
 		event.Session = ses
 		ses.invoke(event)
 	}
@@ -121,7 +121,7 @@ func (ses *Session) write() {
 
 			event := e.(*network.Event)
 
-			ses.log.Infof("write: %s", conf.Encoder.String(event))
+			// ses.log.Infof("write: %s", conf.Encoder.String(event))
 
 			err := ses.conn.WriteMessage(websocket.BinaryMessage, event.Stream)
 			if err != nil {
@@ -155,12 +155,12 @@ func (ses *Session) run(closeFunc func(*Session)) {
 		ses.conn.Close()
 	}()
 
+	// 启动读线程
 	ses.read()
-
-	ses.log.Infof("disconnected")
-
 	// 关闭写线程
 	ses.queue.Close()
+
+	ses.log.Infof("disconnected")
 
 	closeFunc(ses)
 
@@ -186,7 +186,7 @@ func newSession(
 		id:     id,
 		addr:   addr,
 		conn:   conn,
-		queue:  queue2.NewQueue(config.WriteQueueLen),
+		queue:  queue2.New(config.WriteQueueLen),
 		config: config,
 		log:    log.Std(logName),
 		data:   sync.Map{},

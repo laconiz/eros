@@ -121,6 +121,10 @@ func (l *Logger) SetLevel(lv Level) {
 	l.level = lv
 }
 
+func (l *Logger) LogLevel(lv Level) bool {
+	return l.level >= lv
+}
+
 func New(name string, level Level, file File) *Logger {
 	return &Logger{
 		name:  []byte(fmt.Sprintf(" %s $ ", name)),

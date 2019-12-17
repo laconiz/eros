@@ -9,7 +9,7 @@ const (
 )
 
 type Service interface {
-	Start()
+	Run()
 	Stop()
 	State() State
 }
@@ -21,4 +21,5 @@ type Acceptor interface {
 
 type Connector interface {
 	Service
+	Connected() bool
 }

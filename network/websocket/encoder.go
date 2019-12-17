@@ -1,17 +1,18 @@
-package network
+package websocket
 
 import (
 	"bytes"
 	"fmt"
 	"github.com/laconiz/eros/json"
+	"github.com/laconiz/eros/network"
 	"reflect"
 	"unsafe"
 )
 
 type Encoder interface {
-	Encode(msg interface{}) (*Event, error)
-	Decode(stream []byte) (*Event, error)
-	String(*Event) string
+	Encode(msg interface{}) (*network.Event, error)
+	Decode(stream []byte) (*network.Event, error)
+	String(*network.Event) string
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -20,9 +21,9 @@ type nameEncoder struct {
 	sep byte
 }
 
-func (e *nameEncoder) Encode(msg interface{}) (*Event, error) {
+func (e *nameEncoder) Encode(msg interface{}) (*network.Event, error) {
 
-	meta := MetaByMsg(msg)
+	meta := network.MetaByMsg(msg)
 	if meta == nil {
 		return nil, fmt.Errorf("non-proto message: %+v", msg)
 	}
@@ -36,12 +37,12 @@ func (e *nameEncoder) Encode(msg interface{}) (*Event, error) {
 	buf.WriteByte(e.sep)
 	buf.Write(raw)
 
-	return &Event{Meta: meta, Msg: msg, Raw: raw, Stream: buf.Bytes()}, nil
+	return &network.Event{Meta: meta, Msg: msg, Raw: raw, Stream: buf.Bytes()}, nil
 }
 
-var messageIDSize = int(unsafe.Sizeof(MessageID(0)))
+var messageIDSize = int(unsafe.Sizeof(network.MessageID(0)))
 
-func (e *nameEncoder) Decode(stream []byte) (*Event, error) {
+func (e *nameEncoder) Decode(stream []byte) (*network.Event, error) {
 
 	if len(stream) < messageIDSize {
 		return nil, fmt.Errorf("invalid stream length: %d", len(stream))
@@ -57,7 +58,7 @@ func (e *nameEncoder) Decode(stream []byte) (*Event, error) {
 		name = name[:len(name)-1]
 	}
 
-	meta := MetaByName(name)
+	meta := network.MetaByName(name)
 	if meta == nil {
 		return nil, fmt.Errorf("invalid mesage name: %s", name)
 	}
@@ -69,10 +70,10 @@ func (e *nameEncoder) Decode(stream []byte) (*Event, error) {
 		return nil, fmt.Errorf("decode message %s error: %w", string(stream), err)
 	}
 
-	return &Event{Meta: meta, Msg: msg, Raw: raw, Stream: stream}, nil
+	return &network.Event{Meta: meta, Msg: msg, Raw: raw, Stream: stream}, nil
 }
 
-func (e *nameEncoder) String(event *Event) string {
+func (e *nameEncoder) String(event *network.Event) string {
 
 	if event == nil {
 		return "nil event"
@@ -80,13 +81,13 @@ func (e *nameEncoder) String(event *Event) string {
 
 	meta := event.Meta
 	if event.Meta == nil {
-		meta = MetaByMsg(event.Msg)
+		meta = network.MetaByMsg(event.Msg)
 	}
 	if meta == nil {
 		return "invalid event"
 	}
 
-	if event.Meta.Codec() == JsonCodec && event.Stream != nil {
+	if event.Meta.Codec() == network.JsonCodec && event.Stream != nil {
 		return string(event.Stream)
 	}
 
