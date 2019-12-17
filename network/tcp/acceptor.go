@@ -15,75 +15,89 @@ type Acceptor struct {
 	mutex      sync.Mutex
 }
 
-func (acc *Acceptor) Run() {
+func (a *Acceptor) Run() {
 
 	// 检查状态
-	acc.mutex.Lock()
-	if acc.listener != nil {
-		acc.mutex.Unlock()
+	a.mutex.Lock()
+	if a.listener != nil {
+		a.mutex.Unlock()
 		return
 	}
 
 	// 监听端口
-	listener, err := net.Listen("tcp", acc.conf.Addr)
+	listener, err := net.Listen("tcp", a.conf.Addr)
 	if err != nil {
-		acc.logger.Errorf("listen at %s error: %v", acc.conf.Addr, err)
+		a.logger.Errorf("listen at %s error: %v", a.conf.Addr, err)
 		return
 	}
 
 	// 设置状态
-	acc.logger.Infof("running at: %s", acc.conf.Addr)
-	acc.listener = listener
-	acc.mutex.Unlock()
+	a.logger.Infof("running at: %s", a.conf.Addr)
+	a.listener = listener
+	a.mutex.Unlock()
 
 	for {
 
 		// 建立连接
 		conn, err := listener.Accept()
 		if err != nil {
-			acc.logger.Errorf("accept error: %v", err)
+			a.logger.Errorf("accept error: %v", err)
 			break
 		}
 
 		// 执行session
-		id := acc.sessionMgr.NewID()
-		ses := newSession(acc.conf.Name, id, conn, &acc.conf.Session)
-		go ses.run(acc.onSessionClose)
+		id := a.sessionMgr.NewID()
+		ses := newSession(a.conf.Name, id, conn, &a.conf.Session)
+		go ses.run(a.onSessionClose)
 	}
 
 	// 重置状态
-	acc.mutex.Lock()
-	acc.listener = nil
-	acc.mutex.Unlock()
+	a.mutex.Lock()
+	a.listener = nil
+	a.mutex.Unlock()
 }
 
-func (acc *Acceptor) Stop() {
+func (a *Acceptor) Stop() {
 
-	acc.mutex.Lock()
-	acc.mutex.Unlock()
+	a.mutex.Lock()
+	a.mutex.Unlock()
 
-	if acc.listener != nil {
-		acc.listener.Close()
+	if a.listener != nil {
+		a.listener.Close()
 	}
 }
 
-func (acc *Acceptor) State() network.State {
+func (a *Acceptor) State() network.State {
 
-	acc.mutex.Lock()
-	defer acc.mutex.Unlock()
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
 
-	if acc.listener != nil {
+	if a.listener != nil {
 		return network.Running
 	}
 	return network.Stopped
 }
 
-func (acc *Acceptor) Count() int64 {
-	return acc.sessionMgr.Count()
+func (a *Acceptor) Count() int64 {
+	return a.sessionMgr.Count()
 }
 
-func (acc *Acceptor) onSessionClose(ses *Session) {
-	acc.sessionMgr.Del(ses)
+func (a *Acceptor) Broadcast(msg interface{}) {
+	a.sessionMgr.Range(func(ses network.Session) bool {
+		ses.Send(msg)
+		return true
+	})
+}
+
+func (a *Acceptor) BroadcastStream(stream []byte) {
+	a.sessionMgr.Range(func(ses network.Session) bool {
+		ses.SendStream(stream)
+		return true
+	})
+}
+
+func (a *Acceptor) onSessionClose(ses *Session) {
+	a.sessionMgr.Del(ses)
 }
 
 func NewAcceptor(conf AcceptorConfig) network.Acceptor {
