@@ -4,7 +4,31 @@ import (
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/tcp"
 	"github.com/laconiz/eros/oceanus"
+	"sync"
+	"time"
 )
+
+type Peer struct {
+	Channels  map[string]*oceanus.ChannelInfo
+	Connected bool
+}
+
+var (
+	peers = map[string]*Peer{}
+	mutex sync.Mutex
+)
+
+func Check() {
+
+	for {
+
+		select {
+
+		case <-time.After(time.Minute):
+
+		}
+	}
+}
 
 func main() {
 
