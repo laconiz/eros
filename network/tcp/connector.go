@@ -127,6 +127,16 @@ func (c *Connector) reconnect() {
 	}()
 }
 
+func (c *Connector) Send(msg interface{}) {
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.ses != nil {
+		c.ses.Send(msg)
+	}
+}
+
 func NewConnector(conf ConnectorConfig) network.Connector {
 
 	conf.make()
