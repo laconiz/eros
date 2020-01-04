@@ -22,5 +22,5 @@ type Acceptor interface {
 type Connector interface {
 	Service
 	Connected() bool
-	Send(interface{})
+	Send(interface{}) error
 }

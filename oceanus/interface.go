@@ -14,9 +14,9 @@ type Message struct {
 	// 发送队列列表
 	// 追溯消息来源
 	// 路径健康检查
-	Sender []*channel.Info
+	Sender []*ChannelInfo
 	// 接收队列
-	Receivers []channel.ID
+	Receivers []ChannelID
 	// 消息源数据
 	Body []byte
 }

@@ -5,8 +5,8 @@ type SessionID uint64
 type Session interface {
 	ID() SessionID
 	Addr() string
-	Send(msg interface{})
-	SendStream(stream []byte)
+	Send(msg interface{}) error
+	SendStream(stream []byte) error
 	Close()
 	Set(key interface{}, value interface{})
 	Get(key interface{}) (value interface{})

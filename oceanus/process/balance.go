@@ -1,52 +1,47 @@
 package process
 
 import (
-	"fmt"
 	"github.com/laconiz/eros/oceanus"
 	"github.com/laconiz/eros/oceanus/channel"
 	"math/rand"
 	"time"
 )
 
-type balance struct {
-	typo channel.Type
-	info []channel.Channel
-	data map[channel.Key]channel.Channel
-	rand *rand.Rand
+type group struct {
+	typo     channel.Type
+	dirty    bool
+	channels map[channel.Key]channel.Channel
+	balances []channel.Channel
+	rand     *rand.Rand
 }
 
-func (b *balance) Replace(data map[channel.Key]channel.Channel) {
-	b.data = data
+func (g *group) Dirty() {
+	g.dirty = true
 }
 
-func (b *balance) analyze() {
-
-	b.info = nil
-
-	for _, c := range b.data {
-		b.info = append(b.info, c)
-	}
+func (g *group) Update(c channel.Channel) {
+	g.dirty = true
+	g.channels[c.Info().Key] = c
 }
 
-func (b *balance) Balance(message *oceanus.Message) error {
-
-	if b.data != nil {
-		b.analyze()
-		b.data = nil
-	}
-
-	length := len(b.info)
-	if length == 0 {
-		return fmt.Errorf("%w: type[%v]", ErrNotFound, b.typo)
-	}
-
-	index := b.rand.Intn(len(b.info))
-	return b.info[index].Push(message)
+func (g *group) Get(key channel.Key) (channel.Channel, bool) {
+	c, ok := g.channels[key]
+	return c, ok
 }
 
-func newBalance(typo channel.Type) *balance {
-	return &balance{
-		typo: typo,
-		rand: rand.New(rand.NewSource(time.Now().UnixNano())),
+func (g *group) Rand(message *oceanus.Message) error {
+	return nil
+}
+
+func (g *group) Balance(message *oceanus.Message) error {
+
+	return nil
+}
+
+func newGroup(typo channel.Type) *group {
+	return &group{
+		typo:     typo,
+		channels: map[channel.Key]channel.Channel{},
+		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
