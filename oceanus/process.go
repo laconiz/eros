@@ -8,11 +8,30 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/tcp"
 	uuid "github.com/satori/go.uuid"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
+
+func NewProcess() *Process {
+
+	return &Process{
+		Node: &Node{
+			ID:    uuid.NewV1().String(),
+			Addr:  os.Args[1],
+			State: State{},
+		},
+		threads:    map[string]*Thread{},
+		burls:      map[string]*Burl{},
+		courses:    map[string]*Course{},
+		routers:    map[string]*Router{},
+		acceptor:   nil,
+		connectors: map[string]network.Connector{},
+	}
+}
 
 type Process struct {
 
@@ -33,9 +52,6 @@ type Process struct {
 	// TCP接口
 	acceptor   network.Acceptor
 	connectors map[string]network.Connector
-
-	// HTTP接口
-	engine *gin.Engine
 
 	mutex sync.RWMutex
 }

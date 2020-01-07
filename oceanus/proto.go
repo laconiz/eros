@@ -12,7 +12,6 @@ type State struct {
 type Node struct {
 	ID    string
 	Addr  string
-	Port  int
 	State State
 }
 

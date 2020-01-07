@@ -9,10 +9,8 @@ type Burl struct {
 	node *Node
 	// 节点通道
 	courses map[string]*Course
-	// 节点连接
-	conn network.Connector
-	// 连接状态
-	connected bool
+	// 连接信息
+	session network.Session
 }
 
 func (b *Burl) Info() *Node {
@@ -20,9 +18,5 @@ func (b *Burl) Info() *Node {
 }
 
 func (b *Burl) Push(message *Message) error {
-	return b.conn.Send(message)
-}
-
-func (b *Burl) Connected() bool {
-	return b.connected
+	return b.session.Send(message)
 }
