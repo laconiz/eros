@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"errors"
 	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
 	"net"
@@ -127,14 +128,16 @@ func (c *Connector) reconnect() {
 	}()
 }
 
-func (c *Connector) Send(msg interface{}) {
+func (c *Connector) Send(msg interface{}) error {
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	if c.ses != nil {
-		c.ses.Send(msg)
+		return c.ses.Send(msg)
 	}
+
+	return errors.New("disconnected")
 }
 
 func NewConnector(conf ConnectorConfig) network.Connector {

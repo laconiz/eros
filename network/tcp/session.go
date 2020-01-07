@@ -28,12 +28,12 @@ func (ses *Session) Addr() string {
 	return ses.conn.RemoteAddr().String()
 }
 
-func (ses *Session) Send(msg interface{}) {
-	ses.queue.Add(&network.Event{Msg: msg})
+func (ses *Session) Send(msg interface{}) error {
+	return ses.queue.Add(&network.Event{Msg: msg})
 }
 
-func (ses *Session) SendStream(stream []byte) {
-	ses.queue.Add(&network.Event{Stream: stream})
+func (ses *Session) SendStream(stream []byte) error {
+	return ses.queue.Add(&network.Event{Stream: stream})
 }
 
 func (ses *Session) Close() {
