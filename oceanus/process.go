@@ -4,16 +4,13 @@ package oceanus
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
 	"github.com/laconiz/eros/network"
-	"github.com/laconiz/eros/network/tcp"
 	uuid "github.com/satori/go.uuid"
 	"net"
 	"os"
 	"sync"
-	"time"
 )
 
 func NewProcess() *Process {
@@ -71,31 +68,9 @@ func (p *Process) Push(message *Message) error {
 	return nil
 }
 
-//
-func (p *Process) SyncConnectors(nodes []*Node) {
-
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	for _, node := range nodes {
-
-		// 本地节点
-		if node.ID == p.ID {
-			continue
-		}
-
-		// 已存在节点
-		if _, ok := p.burls[node.ID]; ok {
-			continue
-		}
-
-		// 已存在连接
-		if _, ok := p.connectors[node.Addr]; ok {
-			continue
-		}
-
-		net.ParseIP()
-	}
+// 状态
+func (p *Process) State() *State {
+	return &p.Node.State
 }
 
 // 删除远程通道
@@ -106,24 +81,24 @@ func (p *Process) destroyCourse(course *Course) {
 }
 
 // 同步节点
-func (p *Process) OnNodeJoin(nodes []*Node) {
+func (p *Process) OnNodeJoin(node *Node, session network.Session) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	for _, node := range nodes {
+	burl, ok := p.burls[node.ID]
+	if !ok {
+		burl = NewBurl(node)
+		p.burls[node.ID] = burl
+	}
 
-		// 本地节点
-		if node.ID == p.Node.ID {
-			continue
-		}
+	// 更新数据
+	burl.node = node
+	burl.session = session
 
-		// 已存在节点
-		if _, ok := p.burls[node.ID]; ok {
-			continue
-		}
+	// 更新状态
+	for _, course := range burl.courses {
 
-		p.burls[node.ID] = p.NewBurl(node)
 	}
 }
 
@@ -251,79 +226,4 @@ func (p *Process) NewBurl(node *Node) *Burl {
 	})
 
 	return burl
-}
-
-func (p *Process) RunAcceptor() {
-
-	invoker := network.NewStdInvoker()
-
-	invoker.Register(NodeJoinMsg{}, func(event *network.Event) {
-		p.OnNodeJoin(event.Msg.(*NodeJoinMsg).Nodes)
-	})
-
-	invoker.Register(NodeQuitMsg{}, func(event *network.Event) {
-		p.OnNodeQuit(event.Msg.(*NodeQuitMsg).Node)
-	})
-
-	invoker.Register(ChannelJoinMsg{}, func(event *network.Event) {
-
-	})
-
-}
-
-func (p *Process) Run() error {
-
-	id := uuid.NewV1().String()
-
-	plan, err := watch.Parse(map[string]interface{}{
-		"type":    "service",
-		"service": "oceanus",
-	})
-	if err != nil {
-		return fmt.Errorf("parse watch plan error: %w", err)
-	}
-
-	plan.Handler = func(_ uint64, result interface{}) {
-
-		if entries, ok := result.([]*api.ServiceEntry); ok {
-
-			var nodes []*Node
-
-			for _, entry := range entries {
-
-				service := entry.Service
-				addr := fmt.Sprintf("%s:%d", service.Address, service.Port)
-
-				nodes = append(nodes, &Node{
-					ID:    entry.Service.ID,
-					Addr:  addr,
-					State: State{},
-				})
-			}
-		}
-	}
-
-	client := &api.Client{}
-
-	if err := client.Agent().ServiceRegister(&api.AgentServiceRegistration{
-		Kind:              "",
-		ID:                "",
-		Name:              "",
-		Tags:              nil,
-		Port:              0,
-		Address:           "",
-		TaggedAddresses:   nil,
-		EnableTagOverride: false,
-		Meta:              nil,
-		Weights:           nil,
-		Check:             nil,
-		Checks:            nil,
-		Proxy:             nil,
-		Connect:           nil,
-	}); err != nil {
-
-	}
-
-	defer client.Agent().ServiceDeregister(id)
-
 }

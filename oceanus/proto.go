@@ -38,12 +38,12 @@ type Message struct {
 
 // 节点加入网络消息
 type NodeJoinMsg struct {
-	Nodes []*Node
+	Node *Node
 }
 
 // 节点退出网络消息
 type NodeQuitMsg struct {
-	Node []*Node
+	Node *Node
 }
 
 // 通道加入列表

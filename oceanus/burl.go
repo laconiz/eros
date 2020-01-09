@@ -2,7 +2,10 @@
 
 package oceanus
 
-import "github.com/laconiz/eros/network"
+import (
+	"fmt"
+	"github.com/laconiz/eros/network"
+)
 
 type Burl struct {
 	// 节点信息
@@ -18,5 +21,36 @@ func (b *Burl) Info() *Node {
 }
 
 func (b *Burl) Push(message *Message) error {
+
+	if b.session == nil {
+		return fmt.Errorf("node %v is avaliable", b.node)
+	}
+
 	return b.session.Send(message)
+}
+
+func (b *Burl) Connected() bool {
+	return b.session != nil
+}
+
+func (b *Burl) Update(node *Node, session network.Session) {
+
+	b.node = node
+	b.session = session
+
+	for _, course := range b.courses {
+		course.Expired()
+	}
+}
+
+func (b *Burl) Destroy() {
+
+}
+
+func NewBurl(node *Node) *Burl {
+	return &Burl{
+		node:    node,
+		courses: map[string]*Course{},
+		session: nil,
+	}
 }

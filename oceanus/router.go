@@ -7,7 +7,7 @@ import (
 )
 
 type Mesh interface {
-	Info() Node
+	Info() *Node
 	Push(*Message) error
 	Connected() bool
 }
@@ -44,20 +44,22 @@ func (r *Router) expired() {
 // 添加一个通道
 func (r *Router) add(route Route) {
 	r.expired()
-	r.routes[route.Channel().ID] = route
+	r.routes[route.Info().ID] = route
 }
 
 // 删除一个通道
 func (r *Router) remove(route Route) {
 	r.expired()
-	delete(r.routes, route.Channel().ID)
+	delete(r.routes, route.Info().ID)
 }
 
 func (r *Router) rotate() {
 
 	for _, route := range r.routes {
 
-		state := route.Node().State
+		if route.Node().Connected() {
+
+		}
 
 	}
 
@@ -76,6 +78,11 @@ func (r *Router) Balance(message *Message) error {
 
 	index := r.rand.Intn(len(r.balances))
 	return r.balances[index].Push(message)
+}
+
+func (r *Router) Send(message *Message) error {
+
+	return nil
 }
 
 func NewRouter(typo string) *Router {

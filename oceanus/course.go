@@ -18,3 +18,7 @@ func (c *Course) Node() Mesh {
 func (c *Course) Push(message *Message) error {
 	return c.burl.Push(message)
 }
+
+func (c *Course) Expired() {
+	c.router.expired()
+}
