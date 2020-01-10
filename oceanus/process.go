@@ -98,7 +98,7 @@ func (p *Process) OnNodeJoin(node *Node, session network.Session) {
 
 	// 更新状态
 	for _, course := range burl.courses {
-
+		course.router.expired()
 	}
 }
 
