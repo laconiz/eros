@@ -18,6 +18,10 @@ func (t *Thread) Push(message *Message) error {
 	return t.queue.Add(message)
 }
 
+func (t *Thread) Quit() {
+
+}
+
 func (t *Thread) Run() {
 
 	var closed bool

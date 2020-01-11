@@ -52,7 +52,7 @@ func (p *Process) OnNodeListUpdated(nodes []*Node) {
 
 	for _, node := range nodes {
 
-		if node.ID == p.Node.ID {
+		if node.Addr == p.Node.Addr {
 			continue
 		}
 
@@ -68,6 +68,8 @@ func (p *Process) OnNodeListUpdated(nodes []*Node) {
 		if (sp > power && (sp-power)%2 == 0) || (sp < power && (power-sp)%2 != 0) {
 			continue
 		}
+
+		logger.Infof("connect to node: %+v", node)
 
 		conf := tcp.ConnectorConfig{
 			Name:      fmt.Sprintf("oceanus.connector.%s", node.Addr),
@@ -119,9 +121,15 @@ func (p *Process) NewCommonInvoker() *network.StdInvoker {
 		p.OnRouteQuit(event.Msg.(*ChannelQuitMsg).Channels)
 	})
 
+	invoker.Register(network.Connected{}, func(event *network.Event) {
+		p.mutex.RLock()
+		defer p.mutex.RUnlock()
+		event.Session.Send(&NodeJoinMsg{Node: p.Node})
+	})
+
 	invoker.Register(network.Disconnected{}, func(event *network.Event) {
 		if node := event.Session.Get(key); node != nil {
-			p.OnNodeDisconnected(node.(*Node))
+			p.onNodeDisconnected(node.(*Node))
 		}
 	})
 
@@ -130,12 +138,14 @@ func (p *Process) NewCommonInvoker() *network.StdInvoker {
 
 func (p *Process) Run() {
 
+	logger.Infof("node: %+v", p.Node)
+
 	conf := tcp.AcceptorConfig{
 		Name: "oceanus.acceptor",
 		Addr: p.Node.Addr,
 		Session: tcp.SessionConfig{
-			ReadTimeout:  time.Second * 5,
-			WriteTimeout: time.Second * 5,
+			ReadTimeout:  time.Second * 6,
+			WriteTimeout: time.Second * 6,
 			LogLevel:     log.Warn,
 			QueueLen:     64,
 			Invoker:      p.NewCommonInvoker(),
@@ -143,22 +153,32 @@ func (p *Process) Run() {
 	}
 
 	p.acceptor = tcp.NewAcceptor(conf)
-	p.acceptor.Run()
+	go p.acceptor.Run()
 
 	// 注销监听器
 	defer p.acceptor.Stop()
 
-	consulKey := fmt.Sprintf("%s%s", kvPrefix, p.Node.ID)
+	key := fmt.Sprintf("%s%s", kvPrefix, p.Node.ID)
+
+	logger.Infof("register node %s to consul", key)
 
 	// 注册节点信息
-	if err := consul.KV().Store(consulKey, p.Node); err != nil {
+	if err := consul.KV().Store(key, p.Node); err != nil {
 		logger.Errorf("store node error: %w", err)
 		return
 	}
+
+	logger.Infof("register completed")
+
 	// 注销节点信息
 	defer func() {
-		if err := consul.KV().Delete(consulKey); err != nil {
+
+		logger.Infof("deregister from consul")
+
+		if err := consul.KV().Delete(key); err != nil {
 			logger.Errorf("delete node error: %w", err)
+		} else {
+			logger.Info("deregister completed")
 		}
 	}()
 
@@ -193,11 +213,11 @@ func (p *Process) Run() {
 		select {
 		case signal := <-exit:
 			logger.Infof("exit signal received: %v", signal)
-			p.OnDestroy()
+			p.onDestroy()
 			logger.Info("process destroyed")
 			return
 		case <-time.After(time.Second * 5):
-			p.NotifyState()
+			p.notifyState()
 		}
 	}
 }

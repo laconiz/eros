@@ -3,21 +3,20 @@
 package oceanus
 
 import (
-	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/api/watch"
 	"github.com/laconiz/eros/network"
 	uuid "github.com/satori/go.uuid"
-	"net"
 	"os"
 	"sync"
 )
 
 func NewProcess() *Process {
 
+	addr := os.Args[1]
+	id := uuid.NewV3(uuid.NamespaceURL, addr).String()
+
 	return &Process{
 		Node: &Node{
-			ID:    uuid.NewV1().String(),
+			ID:    id,
 			Addr:  os.Args[1],
 			State: State{},
 		},
@@ -69,8 +68,8 @@ func (p *Process) Push(message *Message) error {
 }
 
 // 状态
-func (p *Process) State() *State {
-	return &p.Node.State
+func (p *Process) Connected() bool {
+	return true
 }
 
 // 删除远程通道
@@ -89,12 +88,14 @@ func (p *Process) OnNodeJoin(node *Node, session network.Session) {
 	burl, ok := p.burls[node.ID]
 	if !ok {
 		burl = NewBurl(node)
+		burl.session = session
 		p.burls[node.ID] = burl
+		logger.Infof("node join: %+v", node)
+	} else {
+		burl.node = node
+		burl.session = session
+		logger.Infof("node update: %+v", node)
 	}
-
-	// 更新数据
-	burl.node = node
-	burl.session = session
 
 	// 更新状态
 	for _, course := range burl.courses {
@@ -103,26 +104,39 @@ func (p *Process) OnNodeJoin(node *Node, session network.Session) {
 }
 
 // 删除节点
-func (p *Process) OnNodeQuit(nodes []*Node) {
+func (p *Process) OnNodeQuit(node *Node) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	for _, node := range nodes {
-
-		burl, ok := p.burls[node.ID]
-		if !ok {
-			continue
-		}
-
-		// 清理通道信息
-		for _, course := range burl.courses {
-			p.destroyCourse(course)
-		}
-
-		// 删除节点
-		delete(p.burls, node.ID)
+	burl, ok := p.burls[node.ID]
+	if !ok {
+		return
 	}
+
+	for _, course := range burl.courses {
+		p.destroyCourse(course)
+	}
+
+	delete(p.burls, node.ID)
+}
+
+// 节点连接断开
+func (p *Process) onNodeDisconnected(node *Node) {
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	burl, ok := p.burls[node.ID]
+	if !ok {
+		return
+	}
+
+	for _, course := range burl.courses {
+		course.router.expired()
+	}
+
+	burl.session = nil
 }
 
 // 同步通道
@@ -176,54 +190,36 @@ func (p *Process) OnRouteQuit(channels []*Channel) {
 	}
 }
 
-func (p *Process) NewBurl(node *Node) *Burl {
+func (p *Process) onDestroy() {
 
-	burl := &Burl{
-		Node:    node,
-		conn:    nil,
-		courses: map[string]*Course{},
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	msg := &ChannelQuitMsg{}
+
+	for _, thread := range p.threads {
+		thread.Quit()
+		msg.Channels = append(msg.Channels, thread.channel)
 	}
 
-	invoker := network.NewStdInvoker()
-
-	// 连接成功
-	invoker.Register(network.Connected{}, func(event *network.Event) {
-
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-
-		burl.connected = true
-
-		// 推送当前节点
-		event.Session.Send(&NodeJoinMsg{Node: p.Node})
-
-		// 推送当前通道
-		var channels []*Channel
-		for _, thread := range p.threads {
-			channels = append(channels, thread.Channel())
+	for _, burl := range p.burls {
+		if burl.session != nil {
+			burl.session.Send(msg)
 		}
-		event.Session.Send(&ChannelJoinMsg{Channels: channels})
-	})
+	}
+}
 
-	// 断开连接
-	// 更新状态信息
-	invoker.Register(network.Disconnected{}, func(event *network.Event) {
+func (p *Process) notifyState() {
 
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 
-		burl.connected = false
-	})
+	msg := &NodeJoinMsg{Node: p.Node}
 
-	// 推送通道加入
-	invoker.Register(ChannelJoinMsg{}, func(event *network.Event) {
-		p.OnRouteJoin(event.Msg.(*ChannelJoinMsg).Channels)
-	})
+	for _, burl := range p.burls {
+		if burl.session != nil {
+			burl.session.Send(msg)
+		}
+	}
 
-	// 推送通道退出
-	invoker.Register(ChannelQuitMsg{}, func(event *network.Event) {
-		p.OnRouteQuit(event.Msg.(*ChannelQuitMsg).Channels)
-	})
-
-	return burl
 }
