@@ -5,6 +5,15 @@ import (
 	"github.com/laconiz/eros/oceanus/router"
 )
 
+func NewMesh(info *proto.Mesh, router *router.Router) *Mesh {
+	return &Mesh{
+		mesh:   info,
+		nodes:  map[proto.NodeID]*Node{},
+		types:  map[proto.NodeType]int64{},
+		router: router,
+	}
+}
+
 type Mesh struct {
 	// 网格信息
 	mesh *proto.Mesh

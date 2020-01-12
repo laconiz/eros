@@ -1,228 +1,342 @@
-// 本地进程
-
 package oceanus
 
 import (
+	"errors"
+	"fmt"
+	"github.com/hashicorp/consul/api"
+	"github.com/laconiz/eros/consul"
+	"github.com/laconiz/eros/json"
+	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/tcp"
+	"github.com/laconiz/eros/oceanus/local"
+	"github.com/laconiz/eros/oceanus/proto"
+	"github.com/laconiz/eros/oceanus/remote"
+	"github.com/laconiz/eros/oceanus/router"
 	uuid "github.com/satori/go.uuid"
+	"math/big"
+	"net"
 	"os"
+	"os/signal"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 )
 
-func NewProcess() *Process {
+var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"))
 
-	addr := os.Args[1]
-	id := uuid.NewV3(uuid.NamespaceURL, addr).String()
-
-	return &Process{
-		Node: &Node{
-			ID:    id,
-			Addr:  os.Args[1],
-			State: State{},
-		},
-		threads:    map[string]*Thread{},
-		burls:      map[string]*Burl{},
-		courses:    map[string]*Course{},
-		routers:    map[string]*Router{},
+// 生成一个进程
+func NewProcess(addr string) Process {
+	id := proto.MeshID(uuid.NewV3(namespace, addr).String())
+	mesh := &proto.Mesh{ID: id, Addr: addr}
+	router := router.NewRouter()
+	return &process{
+		mesh:       local.NewMesh(mesh, router),
+		net:        remote.NewNet(router),
 		acceptor:   nil,
 		connectors: map[string]network.Connector{},
 	}
 }
 
-type Process struct {
+type process struct {
 
-	// 本地节点
-	*Node
+	// 本地网格
+	mesh *local.Mesh
 
-	// 本地线程
-	threads map[string]*Thread
+	// 远程网格
+	net *remote.Net
 
-	// 远程节点
-	burls map[string]*Burl
-	// 远程线程
-	courses map[string]*Course
-
-	// 分析器
-	routers map[string]*Router
-
-	// TCP接口
-	acceptor   network.Acceptor
+	// 网格服务端接口
+	acceptor network.Acceptor
+	// 网格客户端接口
 	connectors map[string]network.Connector
 
+	//
 	mutex sync.RWMutex
 }
 
-// 推送本地消息
-func (p *Process) Push(message *Message) error {
-
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-
-	for _, id := range message.Receivers {
-		if thread, ok := p.threads[id]; ok {
-			thread.Push(message)
-		}
-	}
-
-	return nil
-}
-
-// 状态
-func (p *Process) Connected() bool {
-	return true
-}
-
-// 同步节点
-func (p *Process) OnNodeJoin(node *Node, session network.Session) {
+// 同步网格连接
+// TODO 评估非正常退出网格时未及时清理的网格信息的清理工作
+func (p *process) syncMeshConnections(meshes []*proto.Mesh) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	burl, ok := p.burls[node.ID]
-	if !ok {
-		burl = NewBurl(node)
-		burl.session = session
-		p.burls[node.ID] = burl
-		logger.Infof("node join: %+v", node)
-	} else {
-		burl.node = node
-		burl.session = session
-		logger.Infof("node update: %+v", node)
-	}
-
-	// 更新状态
-	for _, course := range burl.courses {
-		course.router.expired()
-	}
-}
-
-// 删除节点
-func (p *Process) OnNodeQuit(node *Node) {
-
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	burl, ok := p.burls[node.ID]
-	if !ok {
+	// 获取本地网格的权值
+	ap, err := addrPower(p.mesh.Info().Addr)
+	if err != nil {
 		return
 	}
 
-	// 回收节点所属通道
-	for _, course := range burl.courses {
-		delete(p.courses, course.channel.ID)
-		course.router.remove(course)
-		delete(course.burl.courses, course.channel.ID)
+	// 同步网格列表
+	for _, mesh := range meshes {
+		// 本地节点
+		if mesh.Addr == p.mesh.Info().Addr {
+			continue
+		}
+		// 已建立连接
+		if _, ok := p.connectors[mesh.Addr]; ok {
+			continue
+		}
+		// 获取网格权值
+		mp, err := addrPower(mesh.Addr)
+		if err != nil {
+			continue
+		}
+		// 连接负载均衡
+		// 当网格数量较多时接近于一半服务器连接一半客户端连接
+		if (ap > mp && (ap-mp)%2 == 0) ||
+			(ap < mp && (mp-ap)%2 != 0) {
+			continue
+		}
+		// 创建客户端连接
+		logger.Infof("connect to mesh: %+v", mesh)
+		// 连接配置信息
+		conf := tcp.ConnectorConfig{
+			Name:      fmt.Sprintf("oceanus.connector.%s", mesh.Addr),
+			Addr:      mesh.Addr,
+			Reconnect: true,
+			Session: tcp.SessionConfig{
+				ReadTimeout:  time.Second * 11,
+				WriteTimeout: time.Second * 11,
+				LogLevel:     log.Warn,
+				QueueLen:     64,
+				Invoker:      p.newInvoker(),
+			},
+		}
+		// 建立连接
+		connector := tcp.NewConnector(conf)
+		go connector.Run()
+		p.connectors[mesh.Addr] = connector
 	}
-
-	// 删除节点
-	delete(p.burls, node.ID)
 }
 
-// 节点连接断开
-func (p *Process) onNodeDisconnected(node *Node) {
-
+// 销毁
+func (p *process) destroy() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	// TODO 通知所有节点关闭
 
-	burl, ok := p.burls[node.ID]
-	if !ok {
+	// 同步网格离线消息
+	p.net.Broadcast(&proto.MeshQuit{Mesh: p.mesh.Info()})
+}
+
+// 同步网格状态
+func (p *process) notifyState() {
+	p.mutex.RLock()
+	p.mutex.RUnlock()
+	p.net.Broadcast(&proto.MeshJoin{Mesh: p.mesh.Info()})
+}
+
+// 监听服务端接口
+func (p *process) runAcceptor() {
+	// 监听信息配置
+	conf := tcp.AcceptorConfig{
+		Name: "oceanus.acceptor",
+		Addr: p.mesh.Info().Addr,
+		Session: tcp.SessionConfig{
+			ReadTimeout:  time.Second * 11,
+			WriteTimeout: time.Second * 11,
+			LogLevel:     log.Warn,
+			QueueLen:     64,
+			Invoker:      p.newInvoker(),
+		},
+	}
+	// 监听端口
+	p.acceptor = tcp.NewAcceptor(conf)
+	go p.acceptor.Run()
+}
+
+// 网格通信回调接口
+func (p *process) newInvoker() network.Invoker {
+
+	const key = "mesh"
+
+	invoker := network.NewStdInvoker()
+
+	// 节点消息
+	invoker.Register(proto.Message{}, func(event *network.Event) {
+		p.mutex.RLock()
+		defer p.mutex.RUnlock()
+		p.mesh.Push(event.Msg.(*proto.Message))
+	})
+
+	// 网格上线
+	invoker.Register(proto.MeshJoin{}, func(event *network.Event) {
+		msg := event.Msg.(*proto.MeshJoin)
+		logger.Infof("mesh join: %+v", msg.Mesh)
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+		p.net.AddMesh(msg.Mesh, event.Session)
+	})
+
+	// 网格离线
+	invoker.Register(proto.MeshQuit{}, func(event *network.Event) {
+		msg := event.Msg.(*proto.MeshQuit)
+		logger.Infof("mesh quit: %+v", msg.Mesh)
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+		p.net.RemoveMesh(msg.ID)
+	})
+
+	// 节点上线
+	invoker.Register(proto.NodeJoin{}, func(event *network.Event) {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+		for _, node := range *event.Msg.(*proto.NodeJoin) {
+			p.net.InsertNode(node)
+		}
+	})
+
+	// 节点离线
+	invoker.Register(proto.NodeQuit{}, func(event *network.Event) {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+		for _, node := range *event.Msg.(*proto.NodeQuit) {
+			p.net.RemoveNode(node)
+		}
+	})
+
+	// 连接成功时 想远程网格同步本地网格和节点数据
+	invoker.Register(network.Connected{}, func(event *network.Event) {
+		p.mutex.RLock()
+		defer p.mutex.RUnlock()
+		event.Session.Send(&proto.MeshJoin{Mesh: p.mesh.Info()})
+	})
+
+	// 连接断开时 根据连接上附加的网格数据更新网格状态
+	invoker.Register(network.Disconnected{}, func(event *network.Event) {
+		if mesh := event.Session.Get(key); mesh != nil {
+			p.mutex.Lock()
+			defer p.mutex.Unlock()
+			p.net.AddMesh(mesh.(*proto.Mesh), event.Session)
+		}
+	})
+
+	return invoker
+}
+
+// 运行网格
+func (p *process) Run() {
+
+	const prefixKey = "oceanus/"
+
+	mesh := p.mesh.Info()
+	logger.Infof("mesh: %+v", mesh)
+
+	// 服务端监听
+	p.runAcceptor()
+	defer p.acceptor.Stop()
+
+	// 注册网格信息
+	key := fmt.Sprintf("%s%v", prefixKey, mesh.ID)
+	if err := consul.KV().Store(key, mesh); err != nil {
+		logger.Errorf("register mesh error: %v", err)
+	}
+	defer func() {
+		if err := consul.KV().Delete(key); err != nil {
+			logger.Errorf("deregister mesh error: %v", err)
+		}
+	}()
+
+	// 监视网格列表
+	watcher, err := consul.NewKeyPrefixWatcher(prefixKey, func(pairs api.KVPairs) {
+		// 反序列化网格列表
+		var meshes []*proto.Mesh
+		for _, pair := range pairs {
+			mesh := &proto.Mesh{}
+			if err := json.Unmarshal(pair.Value, mesh); err == nil {
+				meshes = append(meshes, mesh)
+			}
+		}
+		// 同步网格列表
+		p.syncMeshConnections(meshes)
+	})
+	if err != nil {
+		logger.Errorf("create watcher error: %v", err)
 		return
 	}
+	go watcher.Run()
+	defer watcher.Stop()
 
-	for _, course := range burl.courses {
-		course.router.expired()
+	// 监听进程退出信号
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt, os.Kill)
+
+	// TODO 添加退出信号
+	for {
+		select {
+		case signal := <-exit:
+			logger.Infof("exit signal received: %v", signal)
+			p.destroy()
+			return
+		case <-time.After(time.Second * 5):
+			p.notifyState()
+		}
 	}
-
-	burl.session = nil
 }
 
-// 同步通道
-func (p *Process) addCourse(channels []*Channel) {
+func (p *process) NewTypeNode(typo proto.NodeType) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	for _, channel := range channels {
-
-		// 通道已存在
-		if _, ok := p.courses[channel.ID]; ok {
-			continue
-		}
-
-		// 节点不存在
-		burl, ok := p.burls[channel.Node]
-		if !ok {
-			logger.Warnf("can not find channel[%+v]'s node", channel)
-			continue
-		}
-
-		// 分析器
-		router, ok := p.routers[channel.Type]
-		if !ok {
-			router = NewRouter(channel.Type)
-			p.routers[channel.Type] = router
-		}
-
-		course := &Course{
-			channel: channel,
-			burl:    burl,
-			router:  router,
-		}
-
-		// 添加通道
-		p.courses[channel.ID] = course
-		burl.courses[channel.ID] = course
-		router.add(course)
+	node := &proto.Node{
+		ID:   randomNodeID(),
+		Type: typo,
+		Key:  randomNodeKey(),
+		Mesh: p.mesh.Info().ID,
 	}
+
+	p.mesh.InsertNode(node)
 }
 
-// 回收通道
-func (p *Process) removeCourse(channel *Channel) {
+func (p *process) NewKeyNode(typo proto.NodeType, key proto.NodeKey) {
+
+	id := uuid.NewV1().String()
+
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	if course, ok := p.courses[channel.ID]; ok {
-		delete(p.courses, course.channel.ID)
-		course.router.remove(course)
-		delete(course.burl.courses, course.channel.ID)
+
+	node := &proto.Node{
+		ID:   proto.NodeID(id),
+		Type: typo,
+		Key:  key,
+		Mesh: p.mesh.Info().ID,
 	}
+
+	p.mesh.InsertNode(node)
 }
 
-// 将本节点信息和通道列表同步至指定连接
-func (p *Process) syncProcess(session network.Session) {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-	session.Send(&NodeJoinMsg{Node: p.Node})
-	var channels []*Channel
-	for _, thread := range p.threads {
-		channels = append(channels, thread.Info())
-	}
-	session.Send(&ChannelJoinMsg{Channels: channels})
+// 生成一个随机的节点ID
+func randomNodeID() proto.NodeID {
+	return proto.NodeID(uuid.NewV1().String())
 }
 
-// 关闭节点
-func (p *Process) destroy() {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-	// 通知线程退出
-	for _, thread := range p.threads {
-		thread.Quit()
-	}
-	// 广播节点离线消息
-	p.broadcast(&NodeQuitMsg{Node: p.Node})
+// 生成一个随机的节点KEY
+func randomNodeKey() proto.NodeKey {
+	return proto.NodeKey(uuid.NewV1().String())
 }
 
-// 向其他所有节点同步状态兼心跳功能
-func (p *Process) notifyState() {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-	p.broadcast(&NodeJoinMsg{Node: p.Node})
-}
-
-// 推送消息至所有节点
-func (p *Process) broadcast(msg interface{}) {
-	for _, burl := range p.burls {
-		if burl.session != nil {
-			burl.session.Send(msg)
-		}
+// 获取一个IPV4地址的权值
+func addrPower(addr string) (uint64, error) {
+	// 分离IP和端口
+	ap := strings.Split(addr, ":")
+	if len(ap) != 2 {
+		return 0, errors.New("invalid addr format")
 	}
+	// 解析IP地址
+	ip := net.ParseIP(ap[0])
+	if ip == nil {
+		return 0, errors.New("invalid ip address")
+	}
+	// 反序列化端口号
+	port, err := strconv.ParseUint(ap[1], 10, 64)
+	if err != nil || port > 65535 {
+		return 0, errors.New("invalid port address")
+	}
+	// 计算权值
+	power := big.NewInt(0).SetBytes(ip.To4()).Uint64()
+	return port<<32 | power, nil
 }

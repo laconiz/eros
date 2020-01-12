@@ -1,13 +1,11 @@
 package oceanus
 
-func NewThread(thread interface{}) {
+import (
+	"github.com/laconiz/eros/log"
+)
 
-	std.NewThread(thread)
-
+type Process interface {
+	Run()
 }
 
-var std = NewProcess()
-
-func init() {
-	std.Run()
-}
+var logger = log.Std("oceanus")

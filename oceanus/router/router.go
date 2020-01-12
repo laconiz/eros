@@ -19,20 +19,11 @@ type Router struct {
 }
 
 func (r *Router) Add(node Node) *Hub {
-
+	return nil
 }
 
 func (r *Router) Remove(id proto.NodeID) {
 
-}
-
-func (r Router) Hub(typo proto.NodeType) *Hub {
-	hub, ok := r.hubs[typo]
-	if !ok {
-		hub := newHub(typo)
-		r.hubs[typo] = hub
-	}
-	return hub
 }
 
 func (r *Router) Expired(typo proto.NodeType) {
