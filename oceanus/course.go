@@ -19,6 +19,11 @@ func (c *Course) Push(message *Message) error {
 	return c.burl.Push(message)
 }
 
+func (c *Course) destroy() {
+	c.burl.remove(c)
+	c.router.remove(c)
+}
+
 func (c *Course) Expired() {
 	c.router.expired()
 }

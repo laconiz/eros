@@ -15,5 +15,6 @@ require (
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/olivere/elastic v6.2.26+incompatible
 	github.com/satori/go.uuid v1.2.0
+	github.com/sirupsen/logrus v1.2.0
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 )

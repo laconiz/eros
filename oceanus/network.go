@@ -114,11 +114,11 @@ func (p *Process) NewCommonInvoker() *network.StdInvoker {
 	})
 
 	invoker.Register(ChannelJoinMsg{}, func(event *network.Event) {
-		p.OnRouteJoin(event.Msg.(*ChannelJoinMsg).Channels)
+		p.addCourse(event.Msg.(*ChannelJoinMsg).Channels)
 	})
 
 	invoker.Register(ChannelQuitMsg{}, func(event *network.Event) {
-		p.OnRouteQuit(event.Msg.(*ChannelQuitMsg).Channels)
+		p.removeCourse(event.Msg.(*ChannelQuitMsg).Channels)
 	})
 
 	invoker.Register(network.Connected{}, func(event *network.Event) {
@@ -156,7 +156,7 @@ func (p *Process) Run() {
 	go p.acceptor.Run()
 
 	// 注销监听器
-	defer p.acceptor.Stop()
+	// defer p.acceptor.Stop()
 
 	key := fmt.Sprintf("%s%s", kvPrefix, p.Node.ID)
 
@@ -213,7 +213,8 @@ func (p *Process) Run() {
 		select {
 		case signal := <-exit:
 			logger.Infof("exit signal received: %v", signal)
-			p.onDestroy()
+			p.destroy()
+			p.acceptor.Stop()
 			logger.Info("process destroyed")
 			return
 		case <-time.After(time.Second * 5):

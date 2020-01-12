@@ -8,26 +8,31 @@ import (
 )
 
 type Acceptor struct {
+	state      network.State       // 当前状态
 	conf       AcceptorConfig      // 配置
 	listener   net.Listener        // 监听器
 	sessionMgr *network.SessionMgr // session管理器
-	logger     *log.Logger         // 日志
-	mutex      sync.Mutex
+	// logger     *log.Logger         // 日志
+	logger *log.Entry
+	mutex  sync.Mutex
 }
 
+// 运行服务器接口
 func (a *Acceptor) Run() {
 
 	// 检查状态
 	a.mutex.Lock()
-	if a.listener != nil {
+	if a.state != network.Stopped {
 		a.mutex.Unlock()
 		return
 	}
 
+	a.state = network.Running
+
 	// 监听端口
 	listener, err := net.Listen("tcp", a.conf.Addr)
 	if err != nil {
-		a.logger.Errorf("listen at %s error: %v", a.conf.Addr, err)
+		//a.logger.Errorf("listen at %s error: %v", a.conf.Addr, err)
 		return
 	}
 
@@ -58,6 +63,11 @@ func (a *Acceptor) Run() {
 }
 
 func (a *Acceptor) Stop() {
+
+	a.sessionMgr.Range(func(session network.Session) bool {
+		session.Close()
+		return true
+	})
 
 	a.mutex.Lock()
 	a.mutex.Unlock()

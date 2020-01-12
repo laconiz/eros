@@ -43,8 +43,11 @@ func (b *Burl) Update(node *Node, session network.Session) {
 	}
 }
 
-func (b *Burl) Destroy() {
-
+func (b *Burl) destroy() {
+	for _, course := range b.courses {
+		course.destroy()
+	}
+	b.courses = map[string]*Course{}
 }
 
 func NewBurl(node *Node) *Burl {

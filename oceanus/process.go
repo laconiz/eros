@@ -72,13 +72,6 @@ func (p *Process) Connected() bool {
 	return true
 }
 
-// 删除远程通道
-func (p *Process) destroyCourse(course *Course) {
-	delete(p.courses, course.channel.ID)
-	course.router.remove(course)
-	delete(course.burl.courses, course.channel.ID)
-}
-
 // 同步节点
 func (p *Process) OnNodeJoin(node *Node, session network.Session) {
 
@@ -114,10 +107,14 @@ func (p *Process) OnNodeQuit(node *Node) {
 		return
 	}
 
+	// 回收节点所属通道
 	for _, course := range burl.courses {
-		p.destroyCourse(course)
+		delete(p.courses, course.channel.ID)
+		course.router.remove(course)
+		delete(course.burl.courses, course.channel.ID)
 	}
 
+	// 删除节点
 	delete(p.burls, node.ID)
 }
 
@@ -140,7 +137,7 @@ func (p *Process) onNodeDisconnected(node *Node) {
 }
 
 // 同步通道
-func (p *Process) OnRouteJoin(channels []*Channel) {
+func (p *Process) addCourse(channels []*Channel) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -155,6 +152,7 @@ func (p *Process) OnRouteJoin(channels []*Channel) {
 		// 节点不存在
 		burl, ok := p.burls[channel.Node]
 		if !ok {
+			logger.Warnf("can not find channel[%+v]'s node", channel)
 			continue
 		}
 
@@ -171,6 +169,7 @@ func (p *Process) OnRouteJoin(channels []*Channel) {
 			router:  router,
 		}
 
+		// 添加通道
 		p.courses[channel.ID] = course
 		burl.courses[channel.ID] = course
 		router.add(course)
@@ -178,48 +177,52 @@ func (p *Process) OnRouteJoin(channels []*Channel) {
 }
 
 // 回收通道
-func (p *Process) OnRouteQuit(channels []*Channel) {
-
+func (p *Process) removeCourse(channel *Channel) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-
-	for _, channel := range channels {
-		if course, ok := p.courses[channel.ID]; ok {
-			p.destroyCourse(course)
-		}
+	if course, ok := p.courses[channel.ID]; ok {
+		delete(p.courses, course.channel.ID)
+		course.router.remove(course)
+		delete(course.burl.courses, course.channel.ID)
 	}
 }
 
-func (p *Process) onDestroy() {
-
+// 将本节点信息和通道列表同步至指定连接
+func (p *Process) syncProcess(session network.Session) {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
+	session.Send(&NodeJoinMsg{Node: p.Node})
+	var channels []*Channel
+	for _, thread := range p.threads {
+		channels = append(channels, thread.Info())
+	}
+	session.Send(&ChannelJoinMsg{Channels: channels})
+}
 
-	msg := &ChannelQuitMsg{}
-
+// 关闭节点
+func (p *Process) destroy() {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	// 通知线程退出
 	for _, thread := range p.threads {
 		thread.Quit()
-		msg.Channels = append(msg.Channels, thread.channel)
 	}
-
-	for _, burl := range p.burls {
-		if burl.session != nil {
-			burl.session.Send(msg)
-		}
-	}
+	// 广播节点离线消息
+	p.broadcast(&NodeQuitMsg{Node: p.Node})
 }
 
+// 向其他所有节点同步状态兼心跳功能
 func (p *Process) notifyState() {
-
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
+	p.broadcast(&NodeJoinMsg{Node: p.Node})
+}
 
-	msg := &NodeJoinMsg{Node: p.Node}
-
+// 推送消息至所有节点
+func (p *Process) broadcast(msg interface{}) {
 	for _, burl := range p.burls {
 		if burl.session != nil {
 			burl.session.Send(msg)
 		}
 	}
-
 }
