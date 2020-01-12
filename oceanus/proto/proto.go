@@ -1,5 +1,10 @@
 package proto
 
+import (
+	"github.com/laconiz/eros/codec"
+	"github.com/laconiz/eros/network"
+)
+
 type MeshID string
 
 type State struct {
@@ -35,4 +40,24 @@ type Message struct {
 	Receivers []Node
 	Type      MsgType
 	Body      []byte
+}
+
+type MeshJoin struct {
+	*Mesh
+}
+
+type MeshQuit struct {
+	*Mesh
+}
+
+type NodeJoin []*Node
+
+type NodeQuit []*Node
+
+func init() {
+	network.RegisterMeta(Message{}, codec.Json())
+	network.RegisterMeta(MeshJoin{}, codec.Json())
+	network.RegisterMeta(MeshQuit{}, codec.Json())
+	network.RegisterMeta(NodeJoin{}, codec.Json())
+	network.RegisterMeta(NodeQuit{}, codec.Json())
 }

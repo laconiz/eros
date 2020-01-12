@@ -30,14 +30,37 @@ func (m *Mesh) Push(message *proto.Message) error {
 	return nil
 }
 
-func (m *Mesh) update() {
-
+func (m *Mesh) update(info *proto.Mesh) {
+	m.mesh = info
+	for typo, count := range m.types {
+		if count > 0 {
+			m.router.Expired(typo)
+		}
+	}
 }
 
-func (m *Mesh) insertNode() {
-
+func (m *Mesh) Nodes() []*proto.Node {
+	var nodes []*proto.Node
+	for _, node := range m.nodes {
+		nodes = append(nodes, node.Info())
+	}
+	return nodes
 }
 
-func (m *Mesh) removeNode() {
+func (m *Mesh) InsertNode(info *proto.Node) *Node {
+	m.RemoveNode(info.ID)
+	node := newNode(info, m, m.router)
+	m.nodes[info.ID] = node
+	m.types[info.Type]++
+	return node
+}
 
+func (m *Mesh) RemoveNode(id proto.NodeID) *Node {
+	if node, ok := m.nodes[id]; ok {
+		delete(m.nodes, id)
+		m.router.Remove(id)
+		m.types[node.Info().Type]--
+		return node
+	}
+	return nil
 }

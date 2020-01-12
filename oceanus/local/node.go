@@ -9,6 +9,7 @@ import (
 type Node struct {
 	node  *proto.Node
 	mesh  *Mesh
+	hub   *router.Hub
 	queue *queue.Queue
 }
 
@@ -26,4 +27,14 @@ func (n *Node) Push(message *proto.Message) error {
 
 func (n *Node) Close() {
 	n.queue.Close()
+}
+
+func newNode(info *proto.Node, mesh *Mesh, router *router.Router) *Node {
+	node := &Node{
+		node:  info,
+		mesh:  mesh,
+		queue: queue.New(64),
+	}
+	node.hub = router.Add(node)
+	return node
 }

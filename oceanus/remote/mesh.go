@@ -49,13 +49,9 @@ func (m *Mesh) update(mesh *proto.Mesh, session network.Session) {
 // 插入一个节点并将其插入路由器
 // 路由器在插拔节点时会自动过期 所以不再进行手动过期
 func (m *Mesh) insertNode(info *proto.Node) {
-	node := &Node{
-		node: info,
-		mesh: m,
-	}
-	m.nodes[info.ID] = node
+	m.removeNode(info.ID)
+	m.nodes[info.ID] = newNode(info, m, m.router)
 	m.types[info.Type]++
-	node.hub = m.router.Add(node)
 }
 
 // 移除一个节点并将其从路由器中移除

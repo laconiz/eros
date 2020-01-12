@@ -28,3 +28,9 @@ func (n *Node) Push(message *proto.Message) error {
 func (n *Node) Mesh() router.Mesh {
 	return n.mesh
 }
+
+func newNode(info *proto.Node, mesh *Mesh, router *router.Router) *Node {
+	node := &Node{node: info, mesh: mesh}
+	node.hub = router.Add(node)
+	return node
+}
