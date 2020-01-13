@@ -99,4 +99,6 @@ func (e *nameEncoder) String(event *network.Event) string {
 	return fmt.Sprintf("%s%s%s", meta.Name(), string(e.sep), string(raw))
 }
 
-var NameEncoder Encoder = &nameEncoder{sep: '-'}
+var NameEncoder Encoder = &nameEncoder{sep: NameEncoderSep}
+
+const NameEncoderSep = byte('-')

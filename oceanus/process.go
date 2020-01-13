@@ -10,9 +10,7 @@ import (
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/tcp"
 	"github.com/laconiz/eros/oceanus/local"
-	"github.com/laconiz/eros/oceanus/proto"
 	"github.com/laconiz/eros/oceanus/remote"
-	"github.com/laconiz/eros/oceanus/router"
 	uuid "github.com/satori/go.uuid"
 	"math/big"
 	"net"
@@ -28,9 +26,9 @@ var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"
 
 // 生成一个进程
 func NewProcess(addr string) Process {
-	id := proto.MeshID(uuid.NewV3(namespace, addr).String())
-	mesh := &proto.Mesh{ID: id, Addr: addr}
-	router := router.NewRouter()
+	id := MeshID(uuid.NewV3(namespace, addr).String())
+	mesh := &MeshInfo{ID: id, Addr: addr}
+	router := NewRouter()
 	return &process{
 		mesh:       local.NewMesh(mesh, router),
 		net:        remote.NewNet(router),
@@ -58,7 +56,7 @@ type process struct {
 
 // 同步网格连接
 // TODO 评估非正常退出网格时未及时清理的网格信息的清理工作
-func (p *process) syncMeshConnections(meshes []*proto.Mesh) {
+func (p *process) syncMeshConnections(meshes []*MeshInfo) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -119,14 +117,14 @@ func (p *process) destroy() {
 	// TODO 通知所有节点关闭
 
 	// 同步网格离线消息
-	p.net.Broadcast(&proto.MeshQuit{Mesh: p.mesh.Info()})
+	p.net.Broadcast(&MeshQuit{MeshInfo: p.mesh.Info()})
 }
 
 // 同步网格状态
 func (p *process) notifyState() {
 	p.mutex.RLock()
 	p.mutex.RUnlock()
-	p.net.Broadcast(&proto.MeshJoin{Mesh: p.mesh.Info()})
+	p.net.Broadcast(&MeshJoin{MeshInfo: p.mesh.Info()})
 }
 
 // 监听服务端接口
@@ -156,44 +154,44 @@ func (p *process) newInvoker() network.Invoker {
 	invoker := network.NewStdInvoker()
 
 	// 节点消息
-	invoker.Register(proto.Message{}, func(event *network.Event) {
+	invoker.Register(Message{}, func(event *network.Event) {
 		p.mutex.RLock()
 		defer p.mutex.RUnlock()
-		p.mesh.Push(event.Msg.(*proto.Message))
+		p.mesh.Push(event.Msg.(*Message))
 	})
 
 	// 网格上线
-	invoker.Register(proto.MeshJoin{}, func(event *network.Event) {
-		msg := event.Msg.(*proto.MeshJoin)
-		logger.Infof("mesh join: %+v", msg.Mesh)
+	invoker.Register(MeshJoin{}, func(event *network.Event) {
+		msg := event.Msg.(*MeshJoin)
+		logger.Infof("mesh join: %+v", msg.MeshInfo)
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		p.net.AddMesh(msg.Mesh, event.Session)
+		p.net.AddMesh(msg.MeshInfo, event.Session)
 	})
 
 	// 网格离线
-	invoker.Register(proto.MeshQuit{}, func(event *network.Event) {
-		msg := event.Msg.(*proto.MeshQuit)
-		logger.Infof("mesh quit: %+v", msg.Mesh)
+	invoker.Register(MeshQuit{}, func(event *network.Event) {
+		msg := event.Msg.(*MeshQuit)
+		logger.Infof("mesh quit: %+v", msg.MeshInfo)
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
 		p.net.RemoveMesh(msg.ID)
 	})
 
 	// 节点上线
-	invoker.Register(proto.NodeJoin{}, func(event *network.Event) {
+	invoker.Register(NodeJoin{}, func(event *network.Event) {
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		for _, node := range *event.Msg.(*proto.NodeJoin) {
+		for _, node := range *event.Msg.(*NodeJoin) {
 			p.net.InsertNode(node)
 		}
 	})
 
 	// 节点离线
-	invoker.Register(proto.NodeQuit{}, func(event *network.Event) {
+	invoker.Register(NodeQuit{}, func(event *network.Event) {
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		for _, node := range *event.Msg.(*proto.NodeQuit) {
+		for _, node := range *event.Msg.(*NodeQuit) {
 			p.net.RemoveNode(node)
 		}
 	})
@@ -202,7 +200,7 @@ func (p *process) newInvoker() network.Invoker {
 	invoker.Register(network.Connected{}, func(event *network.Event) {
 		p.mutex.RLock()
 		defer p.mutex.RUnlock()
-		event.Session.Send(&proto.MeshJoin{Mesh: p.mesh.Info()})
+		event.Session.Send(&MeshJoin{MeshInfo: p.mesh.Info()})
 	})
 
 	// 连接断开时 根据连接上附加的网格数据更新网格状态
@@ -210,7 +208,7 @@ func (p *process) newInvoker() network.Invoker {
 		if mesh := event.Session.Get(key); mesh != nil {
 			p.mutex.Lock()
 			defer p.mutex.Unlock()
-			p.net.AddMesh(mesh.(*proto.Mesh), event.Session)
+			p.net.AddMesh(mesh.(*MeshInfo), event.Session)
 		}
 	})
 
@@ -243,9 +241,9 @@ func (p *process) Run() {
 	// 监视网格列表
 	watcher, err := consul.NewKeyPrefixWatcher(prefixKey, func(pairs api.KVPairs) {
 		// 反序列化网格列表
-		var meshes []*proto.Mesh
+		var meshes []*MeshInfo
 		for _, pair := range pairs {
-			mesh := &proto.Mesh{}
+			mesh := &MeshInfo{}
 			if err := json.Unmarshal(pair.Value, mesh); err == nil {
 				meshes = append(meshes, mesh)
 			}
@@ -277,12 +275,12 @@ func (p *process) Run() {
 	}
 }
 
-func (p *process) NewTypeNode(typo proto.NodeType) {
+func (p *process) NewTypeNode(typo NodeType) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	node := &proto.Node{
+	node := &NodeInfo{
 		ID:   randomNodeID(),
 		Type: typo,
 		Key:  randomNodeKey(),
@@ -292,15 +290,15 @@ func (p *process) NewTypeNode(typo proto.NodeType) {
 	p.mesh.InsertNode(node)
 }
 
-func (p *process) NewKeyNode(typo proto.NodeType, key proto.NodeKey) {
+func (p *process) NewKeyNode(typo NodeType, key NodeKey) {
 
 	id := uuid.NewV1().String()
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	node := &proto.Node{
-		ID:   proto.NodeID(id),
+	node := &NodeInfo{
+		ID:   NodeID(id),
 		Type: typo,
 		Key:  key,
 		Mesh: p.mesh.Info().ID,
@@ -310,13 +308,13 @@ func (p *process) NewKeyNode(typo proto.NodeType, key proto.NodeKey) {
 }
 
 // 生成一个随机的节点ID
-func randomNodeID() proto.NodeID {
-	return proto.NodeID(uuid.NewV1().String())
+func randomNodeID() NodeID {
+	return NodeID(uuid.NewV1().String())
 }
 
 // 生成一个随机的节点KEY
-func randomNodeKey() proto.NodeKey {
-	return proto.NodeKey(uuid.NewV1().String())
+func randomNodeKey() NodeKey {
+	return NodeKey(uuid.NewV1().String())
 }
 
 // 获取一个IPV4地址的权值

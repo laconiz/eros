@@ -1,27 +1,26 @@
 package local
 
 import (
-	"github.com/laconiz/eros/oceanus/proto"
-	"github.com/laconiz/eros/oceanus/router"
+	"github.com/laconiz/eros/oceanus"
 	"github.com/laconiz/eros/queue"
 )
 
 type Node struct {
-	node  *proto.Node
+	node  *oceanus.NodeInfo
 	mesh  *Mesh
-	hub   *router.Hub
+	hub   *oceanus.Balancer
 	queue *queue.Queue
 }
 
-func (n *Node) Info() *proto.Node {
+func (n *Node) Info() *oceanus.NodeInfo {
 	return n.node
 }
 
-func (n *Node) Mesh() router.Mesh {
+func (n *Node) Mesh() oceanus.MeshInfo {
 	return n.mesh
 }
 
-func (n *Node) Push(message *proto.Message) error {
+func (n *Node) Push(message *oceanus.Message) error {
 	return n.queue.Add(message)
 }
 
@@ -29,7 +28,7 @@ func (n *Node) Close() {
 	n.queue.Close()
 }
 
-func newNode(info *proto.Node, mesh *Mesh, router *router.Router) *Node {
+func newNode(info *oceanus.NodeInfo, mesh *Mesh, router *oceanus.Router) *Node {
 	node := &Node{
 		node:  info,
 		mesh:  mesh,

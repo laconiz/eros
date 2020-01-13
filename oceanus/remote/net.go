@@ -2,17 +2,16 @@ package remote
 
 import (
 	"github.com/laconiz/eros/network"
-	"github.com/laconiz/eros/oceanus/proto"
-	"github.com/laconiz/eros/oceanus/router"
+	"github.com/laconiz/eros/oceanus"
 )
 
 type Net struct {
-	router *router.Router
-	meshes map[proto.MeshID]*Mesh
+	router *oceanus.Router
+	meshes map[oceanus.MeshID]*Mesh
 }
 
 // 插入或更新一个网格
-func (n *Net) AddMesh(info *proto.Mesh, session network.Session) {
+func (n *Net) AddMesh(info *oceanus.MeshInfo, session network.Session) {
 	mesh, ok := n.meshes[info.ID]
 	if !ok {
 		mesh = newMesh(info, session, n.router)
@@ -23,7 +22,7 @@ func (n *Net) AddMesh(info *proto.Mesh, session network.Session) {
 }
 
 // 删除一个网格
-func (n *Net) RemoveMesh(id proto.MeshID) {
+func (n *Net) RemoveMesh(id oceanus.MeshID) {
 	if mesh, ok := n.meshes[id]; ok {
 		mesh.destroy()
 		delete(n.meshes, id)
@@ -31,14 +30,14 @@ func (n *Net) RemoveMesh(id proto.MeshID) {
 }
 
 // 插入一个节点
-func (n *Net) InsertNode(info *proto.Node) {
+func (n *Net) InsertNode(info *oceanus.NodeInfo) {
 	if mesh, ok := n.meshes[info.Mesh]; ok {
 		mesh.insertNode(info)
 	}
 }
 
 // 移除一个节点
-func (n *Net) RemoveNode(info *proto.Node) {
+func (n *Net) RemoveNode(info *oceanus.NodeInfo) {
 	if mesh, ok := n.meshes[info.Mesh]; ok {
 		mesh.removeNode(info.ID)
 	}
@@ -54,9 +53,9 @@ func (n *Net) Broadcast(msg interface{}) {
 }
 
 // 生成一个网格管理器
-func NewNet(router *router.Router) *Net {
+func NewNet(router *oceanus.Router) *Net {
 	return &Net{
 		router: router,
-		meshes: map[proto.MeshID]*Mesh{},
+		meshes: map[oceanus.MeshID]*Mesh{},
 	}
 }

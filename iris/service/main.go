@@ -6,8 +6,6 @@ import (
 )
 
 func main() {
-
 	process := oceanus.NewProcess(os.Args[1])
 	process.Run()
-
 }

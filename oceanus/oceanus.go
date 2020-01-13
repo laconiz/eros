@@ -6,6 +6,12 @@ import (
 
 type Process interface {
 	Run()
+	NewThread(NodeType, NodeKey, interface{}) error
+}
+
+type Thread interface {
+	Call(interface{}) (interface{}, error)
+	Stop()
 }
 
 var logger = log.Std("oceanus")
