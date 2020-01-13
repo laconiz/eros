@@ -9,7 +9,7 @@ func TestKey(t *testing.T) {
 
 	k := r.Key()
 
-	// Delete Exist
+	// Remove Exist
 	assert(k.Delete(key) == nil)
 	ok, err := k.Exist(key)
 	assert(err == nil, !ok)

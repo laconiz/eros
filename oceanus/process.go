@@ -1,3 +1,5 @@
+// 进程
+
 package oceanus
 
 import (
@@ -9,8 +11,6 @@ import (
 	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/tcp"
-	"github.com/laconiz/eros/oceanus/local"
-	"github.com/laconiz/eros/oceanus/remote"
 	uuid "github.com/satori/go.uuid"
 	"math/big"
 	"net"
@@ -27,23 +27,22 @@ var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"
 // 生成一个进程
 func NewProcess(addr string) Process {
 	id := MeshID(uuid.NewV3(namespace, addr).String())
-	mesh := &MeshInfo{ID: id, Addr: addr}
+	info := &MeshInfo{ID: id, Addr: addr}
 	router := NewRouter()
 	return &process{
-		mesh:       local.NewMesh(mesh, router),
-		net:        remote.NewNet(router),
-		acceptor:   nil,
-		connectors: map[string]network.Connector{},
+		mesh:         NewLocalMesh(info, router),
+		remoteMeshes: NewRemoteMeshMgr(router),
+		connectors:   map[string]network.Connector{},
 	}
 }
 
 type process struct {
 
 	// 本地网格
-	mesh *local.Mesh
+	mesh *LocalMesh
 
 	// 远程网格
-	net *remote.Net
+	remoteMeshes *RemoteMeshMgr
 
 	// 网格服务端接口
 	acceptor network.Acceptor
@@ -112,19 +111,20 @@ func (p *process) syncMeshConnections(meshes []*MeshInfo) {
 
 // 销毁
 func (p *process) destroy() {
+
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	// TODO 通知所有节点关闭
 
 	// 同步网格离线消息
-	p.net.Broadcast(&MeshQuit{MeshInfo: p.mesh.Info()})
+	p.remoteMeshes.Broadcast(&MeshQuit{MeshInfo: p.mesh.Info()})
 }
 
 // 同步网格状态
 func (p *process) notifyState() {
 	p.mutex.RLock()
 	p.mutex.RUnlock()
-	p.net.Broadcast(&MeshJoin{MeshInfo: p.mesh.Info()})
+	p.remoteMeshes.Broadcast(&MeshJoin{MeshInfo: p.mesh.Info()})
 }
 
 // 监听服务端接口
@@ -163,36 +163,36 @@ func (p *process) newInvoker() network.Invoker {
 	// 网格上线
 	invoker.Register(MeshJoin{}, func(event *network.Event) {
 		msg := event.Msg.(*MeshJoin)
-		logger.Infof("mesh join: %+v", msg.MeshInfo)
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		p.net.AddMesh(msg.MeshInfo, event.Session)
+		p.remoteMeshes.InsertMesh(msg.MeshInfo, event.Session)
 	})
 
 	// 网格离线
 	invoker.Register(MeshQuit{}, func(event *network.Event) {
 		msg := event.Msg.(*MeshQuit)
-		logger.Infof("mesh quit: %+v", msg.MeshInfo)
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		p.net.RemoveMesh(msg.ID)
+		p.remoteMeshes.RemoveMesh(msg.ID)
 	})
 
 	// 节点上线
 	invoker.Register(NodeJoin{}, func(event *network.Event) {
+		msg := event.Msg.(*NodeJoin)
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		for _, node := range *event.Msg.(*NodeJoin) {
-			p.net.InsertNode(node)
+		for _, node := range msg.Nodes {
+			p.remoteMeshes.InsertNode(node)
 		}
 	})
 
 	// 节点离线
 	invoker.Register(NodeQuit{}, func(event *network.Event) {
+		msg := event.Msg.(*NodeQuit)
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		for _, node := range *event.Msg.(*NodeQuit) {
-			p.net.RemoveNode(node)
+		for _, node := range msg.Nodes {
+			p.remoteMeshes.RemoveNode(node)
 		}
 	})
 
@@ -208,7 +208,7 @@ func (p *process) newInvoker() network.Invoker {
 		if mesh := event.Session.Get(key); mesh != nil {
 			p.mutex.Lock()
 			defer p.mutex.Unlock()
-			p.net.AddMesh(mesh.(*MeshInfo), event.Session)
+			p.remoteMeshes.InsertMesh(mesh.(*MeshInfo), nil)
 		}
 	})
 

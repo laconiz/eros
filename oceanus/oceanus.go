@@ -6,7 +6,7 @@ import (
 
 type Process interface {
 	Run()
-	NewThread(NodeType, NodeKey, interface{}) error
+	// NewThread(NodeType, NodeKey, interface{}) error
 }
 
 type Thread interface {
