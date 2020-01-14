@@ -36,20 +36,20 @@ func (ses *Session) Addr() string {
 }
 
 // 发送消息
-func (ses *Session) Send(msg interface{}) {
+func (ses *Session) Send(msg interface{}) error {
 
 	event, err := ses.config.Encoder.Encode(msg)
 	if err != nil {
 		ses.log.Errorf("encode message[%+v] error: %v", msg, err)
-		return
+		return err
 	}
 
-	ses.queue.Add(event)
+	return ses.queue.Add(event)
 }
 
 // 发送数据流
-func (ses *Session) SendStream(stream []byte) {
-	ses.queue.Add(&network.Event{Stream: stream})
+func (ses *Session) SendStream(stream []byte) error {
+	return ses.queue.Add(&network.Event{Stream: stream})
 }
 
 // 关闭连接

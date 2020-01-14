@@ -11,3 +11,7 @@ const (
 	NodeUser    oceanus.NodeType = "user"
 	NodeGateway oceanus.NodeType = "gateway"
 )
+
+const (
+	UserProxyMessage oceanus.MsgType = iota
+)

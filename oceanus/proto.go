@@ -63,22 +63,6 @@ type MessageID string
 // 用于消息处理时逻辑处理
 type MsgType uint32
 
-// 路由消息
-type Message struct {
-	// 消息ID
-	ID MessageID
-	// 消息调用节点
-	// 展示完整的消息调用过程
-	// RPC消息回调
-	Senders []NodeInfo
-	// 消息接收节点
-	Receivers []NodeInfo
-	// 消息类型
-	Type MsgType
-	// 消息体
-	Body []byte
-}
-
 // 网格加入 & 更新消息
 // 当底层网络连接成功时自动向其他网格同步
 // TODO 定时向其他网格同步当前网格状态

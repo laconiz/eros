@@ -14,6 +14,7 @@ func New(addr string) *Thread {
 	invoker := network.NewStdInvoker()
 
 	invoker.Register(network.Connected{}, func(event *network.Event) {
+
 	})
 
 	invoker.Register(proto.UserAuthREQ{}, func(event *network.Event) {

@@ -39,7 +39,10 @@ func (e *encoder) Decode(stream []byte) (*network.Event, error) {
 	default:
 		// 路由消息
 		return &network.Event{
-			Msg:    nil,
+			Msg: &ProxyMessage{
+				Type:   pkg,
+				Stream: stream,
+			},
 			Stream: stream,
 		}, nil
 	}
@@ -47,4 +50,9 @@ func (e *encoder) Decode(stream []byte) (*network.Event, error) {
 
 func (e *encoder) String(event *network.Event) string {
 	return string(event.Stream)
+}
+
+type ProxyMessage struct {
+	Type   string
+	Stream []byte
 }
