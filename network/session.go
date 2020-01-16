@@ -1,5 +1,11 @@
 package network
 
+import (
+	"fmt"
+	"math"
+	"sync"
+)
+
 type SessionID uint64
 
 type Session interface {
@@ -9,38 +15,43 @@ type Session interface {
 	SendStream(stream []byte) error
 	Close()
 	Set(key interface{}, value interface{})
-	Get(key interface{}) (value interface{})
+	Get(key interface{}) (value interface{}, ok bool)
 }
 
-type defaultSession struct {
+type emptySession struct {
+	values sync.Map
 }
 
-func (ses *defaultSession) ID() SessionID {
-	return 0
+func (ses *emptySession) ID() SessionID {
+	return math.MaxUint64
 }
 
-func (ses *defaultSession) Addr() string {
+func (ses *emptySession) Addr() string {
 	return ""
 }
 
-func (ses *defaultSession) Send(_ interface{}) {
+func (ses *emptySession) Send(msg interface{}) error {
+	return fmt.Errorf("send message %+v to empty session", msg)
+}
+
+func (ses *emptySession) SendStream(stream []byte) error {
+	return fmt.Errorf("send stream %s to empty session", string(stream))
+}
+
+func (ses *emptySession) Close() {
 
 }
 
-func (ses *defaultSession) SendStream(_ []byte) {
-
+func (ses *emptySession) Set(key interface{}, value interface{}) {
+	ses.values.Store(key, value)
 }
 
-func (ses *defaultSession) Close() {
-
+func (ses *emptySession) Get(key interface{}) (value interface{}, ok bool) {
+	return ses.values.Load(key)
 }
 
-func (ses *defaultSession) Set(key interface{}, value interface{}) {
+var globalEmptySession = &emptySession{}
 
+func DefaultEmptySession() Session {
+	return globalEmptySession
 }
-
-func (ses *defaultSession) Get(key interface{}) (value interface{}) {
-	return nil
-}
-
-var DefaultSession = &defaultSession{}

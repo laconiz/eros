@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"github.com/laconiz/eros/codec"
+	"github.com/laconiz/eros/message"
 	"github.com/laconiz/eros/network"
 )
 
@@ -22,7 +22,7 @@ type Kick struct {
 }
 
 func init() {
-	network.RegisterMeta(Ping{}, codec.Json())
-	network.RegisterMeta(Pong{}, codec.Json())
-	network.RegisterMeta(Kick{}, codec.Json())
+	network.RegisterMeta(Ping{}, message.Json())
+	network.RegisterMeta(Pong{}, message.Json())
+	network.RegisterMeta(Kick{}, message.Json())
 }

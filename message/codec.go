@@ -1,13 +1,16 @@
-package network
+// 消息序列化规则
 
-import (
-	"github.com/laconiz/eros/json"
-)
+package message
+
+import "github.com/laconiz/eros/json"
 
 type Codec interface {
 	Encode(msg interface{}) (raw []byte, err error)
 	Decode(raw []byte, msg interface{}) (err error)
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// JSON序列化规则
 
 type jsonCodec struct {
 }
@@ -20,4 +23,8 @@ func (c *jsonCodec) Decode(raw []byte, msg interface{}) error {
 	return json.Unmarshal(raw, msg)
 }
 
-var JsonCodec Codec = &jsonCodec{}
+var globalJsonCodec = &jsonCodec{}
+
+func JsonCodec() Codec {
+	return globalJsonCodec
+}

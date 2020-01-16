@@ -3,7 +3,7 @@
 package oceanus
 
 import (
-	"github.com/laconiz/eros/codec"
+	"github.com/laconiz/eros/message"
 	"github.com/laconiz/eros/network"
 )
 
@@ -98,9 +98,9 @@ type NodeQuit struct {
 }
 
 func init() {
-	network.RegisterMeta(Message{}, codec.Json())
-	network.RegisterMeta(MeshJoin{}, codec.Json())
-	network.RegisterMeta(MeshQuit{}, codec.Json())
-	network.RegisterMeta(NodeJoin{}, codec.Json())
-	network.RegisterMeta(NodeQuit{}, codec.Json())
+	network.RegisterMeta(Message{}, message.Json())
+	network.RegisterMeta(MeshJoin{}, message.Json())
+	network.RegisterMeta(MeshQuit{}, message.Json())
+	network.RegisterMeta(NodeJoin{}, message.Json())
+	network.RegisterMeta(NodeQuit{}, message.Json())
 }

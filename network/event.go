@@ -1,13 +1,13 @@
 package network
 
+import "github.com/laconiz/eros/message"
+
 type HandlerFunc func(*Event)
 
 type Event struct {
-	Meta    *Meta
-	Msg     interface{}
-	Raw     []byte
-	Stream  []byte
-	Session Session
+	ID  message.ID
+	Msg interface{}
+	Ses Session
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -22,18 +22,28 @@ type ConnectFailed struct {
 }
 
 var (
-	MetaConnected     *Meta
-	MetaDisconnected  *Meta
-	MetaConnectFailed *Meta
+	ConnectedMetaID     message.ID
+	DisconnectedMetaID  message.ID
+	ConnectFailedMetaID message.ID
 )
 
 func init() {
 
-	RegisterMeta(Connected{}, JsonCodec)
-	RegisterMeta(Disconnected{}, JsonCodec)
-	RegisterMeta(ConnectFailed{}, JsonCodec)
+	meta, err := message.Register(Connected{}, message.JsonCodec())
+	if err != nil {
+		panic(err)
+	}
+	ConnectedMetaID = meta.ID()
 
-	MetaConnected = MetaByMsg(Connected{})
-	MetaDisconnected = MetaByMsg(Disconnected{})
-	MetaConnectFailed = MetaByMsg(ConnectFailed{})
+	meta, err = message.Register(Disconnected{}, message.JsonCodec())
+	if err != nil {
+		panic(err)
+	}
+	DisconnectedMetaID = meta.ID()
+
+	meta, err = message.Register(ConnectFailed{}, message.JsonCodec())
+	if err != nil {
+		panic(err)
+	}
+	ConnectFailedMetaID = meta.ID()
 }

@@ -4,19 +4,27 @@ import (
 	"errors"
 	"fmt"
 	"github.com/codegangsta/inject"
+	"github.com/laconiz/eros/message"
 	"github.com/laconiz/eros/network"
 	"reflect"
 )
 
-type NetworkInvoker struct {
-	log      Logger                                      // 日志接口
-	handlers map[network.MessageID][]network.HandlerFunc // 消息接口
+type SocketInvoker struct {
+	log      Logger                               // 日志接口
+	handlers map[message.ID][]network.HandlerFunc // 消息接口
 }
 
 // 调用接口
-func (inv *NetworkInvoker) Invoke(event *network.Event) {
-	for _, handlers := range inv.handlers[event.Meta.ID()] {
-		handlers(event)
+func (inv *SocketInvoker) Invoke(event *network.Event) {
+	for _, handlers := range inv.handlers[event.ID] {
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					inv.log.Errorf("capture panic: %v", err)
+				}
+			}()
+			handlers(event)
+		}()
 	}
 }
 

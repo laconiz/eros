@@ -1,25 +1,28 @@
 package network
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/laconiz/eros/message"
+)
 
 type Invoker interface {
 	Invoke(*Event)
 }
 
 type StdInvoker struct {
-	handlers map[MessageID]func(*Event)
+	handlers map[message.ID]func(*Event)
 }
 
 func (i *StdInvoker) Invoke(e *Event) {
-	if handler, ok := i.handlers[e.Meta.ID()]; ok {
+	if handler, ok := i.handlers[e.ID]; ok {
 		handler(e)
 	}
 }
 
 func (i *StdInvoker) Register(msg interface{}, handler func(*Event)) error {
 
-	meta := MetaByMsg(msg)
-	if meta == nil {
+	meta, ok := message.MetaByMessage(msg)
+	if !ok {
 		return fmt.Errorf("invalid message: %#v", msg)
 	}
 
@@ -32,5 +35,5 @@ func (i *StdInvoker) Register(msg interface{}, handler func(*Event)) error {
 }
 
 func NewStdInvoker() *StdInvoker {
-	return &StdInvoker{handlers: map[MessageID]func(*Event){}}
+	return &StdInvoker{handlers: map[message.ID]func(*Event){}}
 }

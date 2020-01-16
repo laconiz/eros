@@ -3,14 +3,13 @@ package message
 import (
 	"errors"
 	"fmt"
-	"github.com/laconiz/eros/codec"
 	"hash/fnv"
 	"reflect"
 )
 
 type MetaMgr interface {
-	Register(msg interface{}, codec codec.Codec) (Meta, error)
-	RegisterEx(id ID, name string, msg interface{}, codec codec.Codec) (Meta, error)
+	Register(msg interface{}, codec Codec) (Meta, error)
+	RegisterEx(id ID, name string, msg interface{}, codec Codec) (Meta, error)
 	MetaByID(id ID) (Meta, bool)
 	MetaByName(name string) (Meta, bool)
 	MetaByMessage(msg interface{}) (Meta, bool)
@@ -22,7 +21,7 @@ type metaMgr struct {
 	typeMap map[reflect.Type]Meta
 }
 
-func (m *metaMgr) Register(msg interface{}, codec codec.Codec) (Meta, error) {
+func (m *metaMgr) Register(msg interface{}, codec Codec) (Meta, error) {
 
 	typo := reflect.TypeOf(msg)
 	if typo == nil {
@@ -42,7 +41,7 @@ func (m *metaMgr) Register(msg interface{}, codec codec.Codec) (Meta, error) {
 	return m.RegisterEx(id, name, msg, codec)
 }
 
-func (m *metaMgr) RegisterEx(id ID, name string, msg interface{}, codec codec.Codec) (Meta, error) {
+func (m *metaMgr) RegisterEx(id ID, name string, msg interface{}, codec Codec) (Meta, error) {
 
 	if meta, ok := m.idMap[id]; ok {
 		return nil, fmt.Errorf("conflict meta id: %s - %s", name, meta.Name())
@@ -103,26 +102,26 @@ func (m *metaMgr) MetaByMessage(msg interface{}) (Meta, bool) {
 	return meta, ok
 }
 
-var global = NewMetaMgr()
+var globalMetaMgr = NewMetaMgr()
 
-func Register(msg interface{}, codec codec.Codec) (Meta, error) {
-	return global.Register(msg, codec)
+func Register(msg interface{}, codec Codec) (Meta, error) {
+	return globalMetaMgr.Register(msg, codec)
 }
 
-func RegisterEx(id ID, name string, msg interface{}, codec codec.Codec) (Meta, error) {
-	return global.RegisterEx(id, name, msg, codec)
+func RegisterEx(id ID, name string, msg interface{}, codec Codec) (Meta, error) {
+	return globalMetaMgr.RegisterEx(id, name, msg, codec)
 }
 
 func MetaByID(id ID) (Meta, bool) {
-	return global.MetaByID(id)
+	return globalMetaMgr.MetaByID(id)
 }
 
 func MetaByName(name string) (Meta, bool) {
-	return global.MetaByName(name)
+	return globalMetaMgr.MetaByName(name)
 }
 
 func MetaByMessage(msg interface{}) (Meta, bool) {
-	return global.MetaByMessage(msg)
+	return globalMetaMgr.MetaByMessage(msg)
 }
 
 func NewMetaMgr() MetaMgr {

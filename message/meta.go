@@ -1,7 +1,6 @@
 package message
 
 import (
-	"github.com/laconiz/eros/codec"
 	"reflect"
 )
 
@@ -10,6 +9,7 @@ type ID uint32
 type Meta interface {
 	ID() ID
 	Name() string
+	Codec() Codec
 	Encode(msg interface{}) (raw []byte, err error)
 	Decode(raw []byte) (msg interface{}, err error)
 }
@@ -18,7 +18,7 @@ type meta struct {
 	id    ID
 	name  string
 	typo  reflect.Type
-	codec codec.Codec
+	codec Codec
 }
 
 func (m *meta) ID() ID {
@@ -27,6 +27,10 @@ func (m *meta) ID() ID {
 
 func (m *meta) Name() string {
 	return m.name
+}
+
+func (m *meta) Codec() Codec {
+	return m.codec
 }
 
 func (m *meta) Encode(msg interface{}) ([]byte, error) {
