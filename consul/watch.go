@@ -1,3 +1,5 @@
+// consul监视服务
+
 package consul
 
 import (
@@ -21,6 +23,7 @@ func (w *watcher) Stop() {
 	w.plan.Stop()
 }
 
+// 生成一个关于KEY前缀的监视器
 func NewKeyPrefixWatcher(prefix string, handler func(api.KVPairs)) (*watcher, error) {
 
 	plan, err := watch.Parse(map[string]interface{}{

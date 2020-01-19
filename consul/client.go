@@ -2,10 +2,13 @@ package consul
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/consul/api"
-	"github.com/laconiz/eros/log"
-	"os"
+
+	"github.com/laconiz/eros/utils/command"
 )
+
+const DefaultAddr = "127.0.0.1:8500"
 
 var (
 	addr   string
@@ -14,34 +17,15 @@ var (
 
 func init() {
 
-	for idx, arg := range os.Args {
-		if arg == "-consul" && idx+1 < len(os.Args) {
-			addr = os.Args[idx+1]
-			break
-		}
-	}
+	addr = command.ParseStringArg("consul", DefaultAddr)
 
-	if addr == "" {
-		addr = os.Getenv("CONSUL_HOST")
-	}
-
-	if addr == "" {
-		addr = "127.0.0.1:8500"
-	}
-
-	logger.Infof("connect to %s", addr)
-
-	var err error
-	client, err = api.NewClient(&api.Config{
-		Address: addr,
-	})
-	if err != nil {
+	if cli, err := api.NewClient(&api.Config{Address: addr}); err != nil {
 		panic(fmt.Errorf("new consul client error: %w", err))
+	} else {
+		client = cli
 	}
 
 	if _, err := client.Catalog().Datacenters(); err != nil {
-		panic(fmt.Errorf("check consul client error: %w", err))
+		panic(fmt.Errorf("check consul connection error: %w", err))
 	}
 }
-
-var logger = log.Std("consul")
