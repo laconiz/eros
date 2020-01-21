@@ -2,6 +2,7 @@ package message
 
 import (
 	"fmt"
+
 	"github.com/laconiz/eros/json"
 )
 

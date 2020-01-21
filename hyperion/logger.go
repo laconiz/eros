@@ -6,7 +6,9 @@ const (
 	Module = "module"
 )
 
-func NewEntry(module string) *logrus.Entry {
+type Entry = logrus.Entry
+
+func NewEntry(module string) *Entry {
 	return logger.WithField(Module, module)
 }
 

@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/jinzhu/gorm"
 	"github.com/olivere/elastic"
-	"reflect"
 )
 
 var (

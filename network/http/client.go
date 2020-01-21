@@ -2,11 +2,12 @@ package http
 
 import (
 	"bytes"
-	"github.com/laconiz/eros/json"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"time"
+
+	"github.com/laconiz/eros/json"
 )
 
 const defaultUrlPrefix = "http://"

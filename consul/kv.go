@@ -4,11 +4,10 @@ package consul
 
 import (
 	"errors"
-	"fmt"
+
 	"github.com/hashicorp/consul/api"
+
 	"github.com/laconiz/eros/json"
-	"reflect"
-	"strings"
 )
 
 var ErrNotFound = errors.New("key not found")
