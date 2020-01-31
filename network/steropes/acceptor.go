@@ -1,6 +1,10 @@
 package steropes
 
 import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"github.com/laconiz/eros/network/epimetheus"
+	"github.com/laconiz/eros/utils/ioc"
 	"net/http"
 	"sync"
 
@@ -8,62 +12,80 @@ import (
 	"github.com/laconiz/eros/network"
 )
 
-const (
-	Module    = "steropes"
-	FieldName = "name"
-	FieldAddr = "addr"
-)
+const module = "steropes"
 
-func NewAcceptor(option AcceptorOption) *Acceptor {
-
-	logger := hyperion.NewEntry(Module).
-		WithField(FieldName, option.Name).
-		WithField(FieldAddr, option.Addr)
-
-	acceptor := &Acceptor{
-		state:  network.Stopped,
-		server: nil,
-		logger: logger,
+func NewAcceptor(option AcceptorOption) (*Acceptor, error) {
+	option.make()
+	logger := hyperion.NewEntry(module).WithField(epimetheus.FieldName, option.Name)
+	squirt := ioc.New().Params(option.Params...).Functions(option.Functions...)
+	engine := gin.New()
+	engine.Use(gin.Recovery())
+	if err := handleNode(engine, option.Node, squirt, logger); err != nil {
+		return nil, err
 	}
-
-	return acceptor
+	return &Acceptor{
+		state:  network.Stopped,
+		server: &http.Server{Addr: option.Addr, Handler: engine},
+		logger: logger,
+	}, nil
 }
 
 type Acceptor struct {
 	state  network.State
 	server *http.Server
 	logger *hyperion.Entry
-	mutex  sync.Mutex
+	mutex  sync.RWMutex
 }
 
 func (a *Acceptor) Run() {
-
-	if !func() bool {
-
-		a.mutex.Lock()
-		defer a.mutex.Unlock()
-
-		if a.state != network.Stopped {
-			return false
-		}
-
-		return false
-
-	}() {
+	server := a.run()
+	if server == nil {
 		return
 	}
-
-	a.server = &http.Server{Addr: a.server.Addr, Handler: a.server.Handler}
-
-	a.logger.WithField(FieldAddr, a.server.Addr).Infof("start listening")
-	err := a.server.ListenAndServe()
+	a.logger.WithField(epimetheus.FieldAddr, server.Addr).Infof(epimetheus.ContentStarted)
+	err := server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		a.logger.WithError(err).Error("stopped")
+		a.logger.WithError(err).Error(epimetheus.ContentStopped)
 	} else {
-		a.logger.Info("stopped")
+		a.logger.Info(epimetheus.ContentStopped)
+	}
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	if server == a.server {
+		a.state = network.Stopped
 	}
 }
 
-func (a *Acceptor) Stop() {
+func (a *Acceptor) run() *http.Server {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	if a.state != network.Stopped {
+		return nil
+	}
+	a.state = network.Running
+	a.server = &http.Server{Addr: a.server.Addr, Handler: a.server.Handler}
+	return a.server
+}
 
+func (a *Acceptor) Stop() {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	if a.state != network.Running {
+		return
+	}
+	a.state = network.Closing
+	a.logger.Info(epimetheus.ContentStopping)
+	if err := a.server.Shutdown(context.Background()); err != nil {
+		a.logger.WithError(err).Error(epimetheus.ContentStopError)
+	}
+}
+
+func (a *Acceptor) State() network.State {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.state
+}
+
+func init() {
+	gin.SetMode(gin.ReleaseMode)
 }

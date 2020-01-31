@@ -3,7 +3,6 @@ package steropes
 import (
 	"fmt"
 	"github.com/laconiz/eros/utils/ioc"
-	"net/http"
 	"reflect"
 
 	"github.com/gin-gonic/gin"
@@ -18,39 +17,18 @@ type Node struct {
 	NoLog    bool
 }
 
-func newHandler(node *Node, logger *hyperion.Entry) (http.Handler, error) {
-	// gin
-	engine := gin.New()
-	engine.Use(gin.Recovery())
-	// 注入器
-	squirt := ioc.New().Params().Functions()
-	if err := squirt.Error(); err != nil {
-		return nil, err
-	}
-	// 构造接口
-	if err := handleNode(engine, node, squirt, logger); err != nil {
-		return nil, err
-	}
-	return engine, nil
-}
-
 func handleNode(router gin.IRouter, node *Node, base *ioc.Squirt, logger *hyperion.Entry) error {
-
 	for method, handler := range node.Handlers {
-
 		squirt, err := addMessageHandler(base, handler)
 		if err != nil {
 			return err
 		}
-
 		invoker, err := squirt.Handle(handler, &gin.Context{})
 		if err != nil {
 			return err
 		}
-
 		path := router.(*gin.RouterGroup).BasePath()
 		logger = logger.WithField(fieldPath, path+node.Path)
-
 		router.Handle(method, node.Path, func(ctx *gin.Context) {
 			invoker(ctx)
 		})

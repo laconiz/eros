@@ -1,6 +1,9 @@
 package hyperion
 
-import "github.com/sirupsen/logrus"
+import (
+	"github.com/sirupsen/logrus"
+	"os"
+)
 
 const (
 	Module = "module"
@@ -16,4 +19,7 @@ var logger *logrus.Logger
 
 func init() {
 	logger = logrus.New()
+	logger.SetOutput(os.Stdout)
+	logger.SetLevel(logrus.TraceLevel)
+	logger.SetFormatter(&Formatter{})
 }
