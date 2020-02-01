@@ -2,7 +2,8 @@ package network
 
 import (
 	"fmt"
-	"github.com/laconiz/eros/message"
+
+	"github.com/laconiz/eros/holder/message"
 )
 
 type Invoker interface {

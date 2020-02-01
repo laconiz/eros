@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"github.com/laconiz/eros/json"
+	"github.com/laconiz/eros/utils/json"
 )
 
 type Message interface {

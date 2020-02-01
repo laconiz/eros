@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"github.com/laconiz/eros/json"
+	"github.com/laconiz/eros/utils/json"
 )
 
 // 将键值对列表序列化成字典

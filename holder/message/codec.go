@@ -2,7 +2,7 @@
 
 package message
 
-import "github.com/laconiz/eros/json"
+import "github.com/laconiz/eros/utils/json"
 
 type Codec interface {
 	Encode(msg interface{}) (raw []byte, err error)

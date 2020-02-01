@@ -2,12 +2,13 @@ package tcp
 
 import (
 	"fmt"
-	"github.com/laconiz/eros/log"
-	"github.com/laconiz/eros/network"
-	"github.com/laconiz/eros/queue"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/laconiz/eros/holder/queue"
+	"github.com/laconiz/eros/log"
+	"github.com/laconiz/eros/network"
 )
 
 type Session struct {

@@ -3,10 +3,11 @@ package websocket
 import (
 	"bytes"
 	"fmt"
-	"github.com/laconiz/eros/json"
-	"github.com/laconiz/eros/network"
 	"reflect"
 	"unsafe"
+
+	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/utils/json"
 )
 
 type Encoder interface {

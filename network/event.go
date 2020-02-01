@@ -1,6 +1,6 @@
 package network
 
-import "github.com/laconiz/eros/message"
+import "github.com/laconiz/eros/holder/message"
 
 type HandlerFunc func(*Event)
 

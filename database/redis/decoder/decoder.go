@@ -4,9 +4,11 @@ package decoder
 
 import (
 	"fmt"
-	"github.com/gomodule/redigo/redis"
-	"github.com/laconiz/eros/json"
 	"reflect"
+
+	"github.com/gomodule/redigo/redis"
+
+	"github.com/laconiz/eros/utils/json"
 )
 
 // 反序列化redigo的返回数据

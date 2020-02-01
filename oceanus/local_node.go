@@ -3,7 +3,7 @@
 package oceanus
 
 import (
-	"github.com/laconiz/eros/queue"
+	"github.com/laconiz/eros/holder/queue"
 )
 
 func NewLocalNode(info *NodeInfo, mesh *LocalMesh, router *Router) *LocalNode {

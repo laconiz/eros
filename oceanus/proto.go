@@ -3,7 +3,7 @@
 package oceanus
 
 import (
-	"github.com/laconiz/eros/message"
+	"github.com/laconiz/eros/holder/message"
 	"github.com/laconiz/eros/network"
 )
 

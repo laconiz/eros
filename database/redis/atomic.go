@@ -4,9 +4,10 @@ package redis
 
 import (
 	"errors"
+	"time"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/satori/go.uuid"
-	"time"
 )
 
 var (

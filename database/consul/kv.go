@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"github.com/laconiz/eros/json"
+	"github.com/laconiz/eros/utils/json"
 )
 
 var ErrNotFound = errors.New("key not found")

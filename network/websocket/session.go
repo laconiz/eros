@@ -2,12 +2,14 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/laconiz/eros/log"
-	"github.com/laconiz/eros/network"
-	queue2 "github.com/laconiz/eros/queue"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
+
+	queue2 "github.com/laconiz/eros/holder/queue"
+	"github.com/laconiz/eros/log"
+	"github.com/laconiz/eros/network"
 )
 
 type SessionMgr interface {

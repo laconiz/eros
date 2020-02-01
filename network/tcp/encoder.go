@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/laconiz/eros/json"
-	"github.com/laconiz/eros/network"
 	"net"
 	"reflect"
+
+	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/utils/json"
 )
 
 type Encoder interface {

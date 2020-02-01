@@ -171,7 +171,8 @@ func (s *Squirt) invoker(chain Chain, handler interface{}) Handler {
 			if !values[1].IsNil() {
 				return nil, values[1].Interface().(error)
 			}
-			injector.Set(builder.typo, values[0])
+			// injector.Set(builder.typo, values[0])
+			injector.Map(values[0])
 		}
 		// 调用接口
 		return injector.Invoke(handler)
@@ -223,8 +224,8 @@ func (s *Squirt) UnknownArgs(handler interface{}) ([]reflect.Type, error) {
 	// 未知参数列表
 	var args []reflect.Type
 	// 获取未知参数
-	for i := 0; i < typo.NumOut(); i++ {
-		in := typo.Out(i)
+	for i := 0; i < typo.NumIn(); i++ {
+		in := typo.In(i)
 		if !s.hasArg(in) {
 			args = append(args, in)
 		}

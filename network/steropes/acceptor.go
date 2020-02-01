@@ -2,14 +2,15 @@ package steropes
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
-	"github.com/laconiz/eros/network/epimetheus"
-	"github.com/laconiz/eros/utils/ioc"
 	"net/http"
 	"sync"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/laconiz/eros/hyperion"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/epimetheus"
+	"github.com/laconiz/eros/utils/ioc"
 )
 
 const module = "steropes"

@@ -5,13 +5,6 @@ package oceanus
 import (
 	"errors"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/laconiz/eros/consul"
-	"github.com/laconiz/eros/json"
-	"github.com/laconiz/eros/log"
-	"github.com/laconiz/eros/network"
-	"github.com/laconiz/eros/network/tcp"
-	uuid "github.com/satori/go.uuid"
 	"math/big"
 	"net"
 	"os"
@@ -20,6 +13,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	uuid "github.com/satori/go.uuid"
+
+	"github.com/laconiz/eros/database/consul"
+	"github.com/laconiz/eros/log"
+	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/tcp"
+	"github.com/laconiz/eros/utils/json"
 )
 
 var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"))

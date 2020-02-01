@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+func URL(url string) *Connector {
+	return globalConnector.URL(url)
+}
+
 func Header(header http.Header) *Connector {
 	return globalConnector.Header(header)
 }

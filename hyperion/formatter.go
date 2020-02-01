@@ -2,7 +2,8 @@ package hyperion
 
 import (
 	"bytes"
-	"github.com/laconiz/eros/json"
+
+	"github.com/laconiz/eros/utils/json"
 )
 
 type Formatter struct {

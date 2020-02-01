@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/laconiz/eros/json"
+	"github.com/laconiz/eros/utils/json"
 )
 
 const (

@@ -3,10 +3,12 @@ package invoker
 import (
 	"errors"
 	"fmt"
-	"github.com/codegangsta/inject"
-	"github.com/laconiz/eros/message"
-	"github.com/laconiz/eros/network"
 	"reflect"
+
+	"github.com/codegangsta/inject"
+
+	"github.com/laconiz/eros/holder/message"
+	"github.com/laconiz/eros/network"
 )
 
 type SocketInvoker struct {

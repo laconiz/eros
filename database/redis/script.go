@@ -4,7 +4,8 @@ package redis
 
 import (
 	"github.com/gomodule/redigo/redis"
-	"github.com/laconiz/eros/redis/decoder"
+
+	"github.com/laconiz/eros/database/redis/decoder"
 )
 
 type Script struct {
