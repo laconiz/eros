@@ -1,8 +1,9 @@
 package epimetheus
 
 const (
-	FieldName = "name"
-	FieldAddr = "addr"
+	FieldName    = "name"
+	FieldAddr    = "addr"
+	FieldSession = "session"
 )
 
 const (

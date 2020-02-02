@@ -17,7 +17,7 @@ func New() *Squirt {
 }
 
 // 依赖注入接口
-type Handler func(...interface{}) ([]reflect.Value, error)
+type Invoker func(...interface{}) ([]interface{}, []reflect.Value, error)
 
 // 注入器
 type Squirt struct {
@@ -123,7 +123,7 @@ func (s *Squirt) Error() error {
 	return s.err
 }
 
-func (s *Squirt) Handle(handler interface{}, args ...interface{}) (Handler, error) {
+func (s *Squirt) Handle(handler interface{}, args ...interface{}) (Invoker, error) {
 	// 校验接口类型
 	typo, err := checkHandler(handler)
 	if err != nil {
@@ -154,28 +154,40 @@ func (s *Squirt) Handle(handler interface{}, args ...interface{}) (Handler, erro
 }
 
 //
-func (s *Squirt) invoker(chain Chain, handler interface{}) Handler {
-	return func(args ...interface{}) ([]reflect.Value, error) {
+func (s *Squirt) invoker(chain Chain, handler interface{}) Invoker {
+
+	return func(args ...interface{}) ([]interface{}, []reflect.Value, error) {
+
 		// 构造基础参数
 		injector := inject.New()
 		injector.SetParent(s.injector)
 		for _, arg := range args {
 			injector.Map(arg)
 		}
+
+		var arguments []interface{}
+
 		// 调用参数生成链
 		for _, builder := range chain {
+
 			values, err := injector.Invoke(builder.function)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+
 			if !values[1].IsNil() {
-				return nil, values[1].Interface().(error)
+				return nil, nil, values[1].Interface().(error)
 			}
-			// injector.Set(builder.typo, values[0])
-			injector.Map(values[0])
+
+			if values[0].CanInterface() {
+				injector.Map(values[0].Interface())
+				arguments = append(arguments, values[0].Interface())
+			}
 		}
+
 		// 调用接口
-		return injector.Invoke(handler)
+		values, err := injector.Invoke(handler)
+		return arguments, values, err
 	}
 }
 

@@ -1,11 +1,10 @@
 package main
 
 import (
-	"net/http"
-	"time"
-
 	"github.com/laconiz/eros/network/steropes"
 	"github.com/laconiz/eros/network/steropes/example"
+	"net/http"
+	"time"
 )
 
 func main() {
