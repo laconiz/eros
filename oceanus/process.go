@@ -20,7 +20,7 @@ import (
 	"github.com/laconiz/eros/database/consul"
 	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
-	"github.com/laconiz/eros/network/tcp"
+	"github.com/laconiz/eros/network/atlas"
 	"github.com/laconiz/eros/utils/json"
 )
 
@@ -92,11 +92,11 @@ func (p *process) syncMeshConnections(meshes []*MeshInfo) {
 		// 创建客户端连接
 		logger.Infof("connect to mesh: %+v", mesh)
 		// 连接配置信息
-		conf := tcp.ConnectorConfig{
+		conf := atlas.ConnectorConfig{
 			Name:      fmt.Sprintf("oceanus.connector.%s", mesh.Addr),
 			Addr:      mesh.Addr,
 			Reconnect: true,
-			Session: tcp.SessionConfig{
+			Session: atlas.SessionOption{
 				ReadTimeout:  time.Second * 11,
 				WriteTimeout: time.Second * 11,
 				LogLevel:     log.Warn,
@@ -105,7 +105,7 @@ func (p *process) syncMeshConnections(meshes []*MeshInfo) {
 			},
 		}
 		// 建立连接
-		connector := tcp.NewConnector(conf)
+		connector := atlas.NewConnector(conf)
 		go connector.Run()
 		p.connectors[mesh.Addr] = connector
 	}
@@ -132,10 +132,10 @@ func (p *process) notifyState() {
 // 监听服务端接口
 func (p *process) runAcceptor() {
 	// 监听信息配置
-	conf := tcp.AcceptorConfig{
+	conf := atlas.AcceptorOption{
 		Name: "oceanus.acceptor",
 		Addr: p.mesh.Info().Addr,
-		Session: tcp.SessionConfig{
+		Session: atlas.SessionOption{
 			ReadTimeout:  time.Second * 11,
 			WriteTimeout: time.Second * 11,
 			LogLevel:     log.Warn,
@@ -144,7 +144,7 @@ func (p *process) runAcceptor() {
 		},
 	}
 	// 监听端口
-	p.acceptor = tcp.NewAcceptor(conf)
+	p.acceptor = atlas.NewAcceptor(conf)
 	go p.acceptor.Run()
 }
 

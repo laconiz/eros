@@ -1,4 +1,4 @@
-package tcp
+package atlas
 
 import (
 	"errors"
@@ -62,7 +62,7 @@ func (c *Connector) connect() {
 	conf := c.conf
 
 	// 连接
-	conn, err := net.Dial("tcp", conf.Addr)
+	conn, err := net.Dial("atlas", conf.Addr)
 	ses := newSession(conf.Name, connectorSessionID, conn, &conf.Session)
 
 	if err != nil {

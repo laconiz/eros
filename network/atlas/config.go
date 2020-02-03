@@ -1,21 +1,26 @@
-package tcp
+package atlas
 
 import (
-	"github.com/laconiz/eros/log"
-	"github.com/laconiz/eros/network"
 	"time"
+
+	"github.com/laconiz/eros/holder/message"
+	"github.com/laconiz/eros/network"
 )
 
-type SessionConfig struct {
-	ReadTimeout  time.Duration
+type SessionOption struct {
+	// 读超时
+	ReadTimeout time.Duration
+	// 写超时
 	WriteTimeout time.Duration
-	LogLevel     log.Level
-	QueueLen     int
-	Invoker      network.Invoker
-	EncoderMaker EncoderMaker
+	// 写缓冲区长度
+	QueueLen int
+	// 回调接口
+	Invoker network.Invoker
+	// 编码器
+	Encoder message.Encoder
 }
 
-func (conf *SessionConfig) make() {
+func (conf *SessionOption) make() {
 
 	if conf.ReadTimeout == 0 {
 		conf.ReadTimeout = time.Second * 15
@@ -38,13 +43,13 @@ func (conf *SessionConfig) make() {
 	}
 }
 
-type AcceptorConfig struct {
+type AcceptorOption struct {
 	Name    string
 	Addr    string
-	Session SessionConfig
+	Session SessionOption
 }
 
-func (conf *AcceptorConfig) make() {
+func (conf *AcceptorOption) make() {
 
 	if conf.Name == "" {
 		conf.Name = "acceptor"
@@ -57,7 +62,7 @@ type ConnectorConfig struct {
 	Name      string
 	Addr      string
 	Reconnect bool
-	Session   SessionConfig
+	Session   SessionOption
 }
 
 func (conf *ConnectorConfig) make() {

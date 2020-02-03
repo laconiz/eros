@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
-	"github.com/laconiz/eros/network/tcp"
-	"github.com/laconiz/eros/network/tcp/examples"
+	"github.com/laconiz/eros/network/atlas"
+	"github.com/laconiz/eros/network/atlas/examples"
 	"sync/atomic"
 	"time"
 )
@@ -24,14 +24,14 @@ func main() {
 	// 	event.Session.Send(examples.REQ{Int: flag})
 	// })
 
-	conf := tcp.ConnectorConfig{
+	conf := atlas.ConnectorConfig{
 		Addr:      "192.168.10.108:12313",
 		Reconnect: true,
 	}
 	conf.Session.Invoker = invoker
 	conf.Session.LogLevel = log.Warn
 
-	connector := tcp.NewConnector(conf)
+	connector := atlas.NewConnector(conf)
 	connector.Run()
 
 	go func() {

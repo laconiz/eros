@@ -1,4 +1,4 @@
-package tcp
+package atlas
 
 import (
 	"fmt"
@@ -7,18 +7,21 @@ import (
 	"time"
 
 	"github.com/laconiz/eros/holder/queue"
+	"github.com/laconiz/eros/hyperion"
 	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/epimetheus"
+	"github.com/laconiz/eros/network/incremental"
 )
 
 type Session struct {
 	id      network.SessionID // session id
 	conn    net.Conn          // 连接
-	config  *SessionConfig    // 配置信息
+	option  *SessionOption    // 配置信息
 	encoder Encoder           // 编码器
 	queue   *queue.Queue      // 发送队列
 	data    sync.Map          // 附加数据
-	logger  *log.Logger       // 日志接口
+	logger  *hyperion.Entry   // 日志接口
 }
 
 func (ses *Session) ID() network.SessionID {
@@ -54,7 +57,7 @@ func (ses *Session) Get(key interface{}) interface{} {
 
 func (ses *Session) read() {
 
-	conf := ses.config
+	conf := ses.option
 
 	for {
 
@@ -77,7 +80,7 @@ func (ses *Session) read() {
 
 func (ses *Session) write() {
 
-	conf := ses.config
+	conf := ses.option
 
 	for {
 
@@ -163,27 +166,19 @@ func (ses *Session) invoke(event *network.Event) {
 		}
 	}()
 
-	ses.config.Invoker.Invoke(event)
+	ses.option.Invoker.Invoke(event)
 }
 
-func newSession(
-	peer string,
-	id network.SessionID,
-	conn net.Conn,
-	conf *SessionConfig,
-) *Session {
+func newSession(conn net.Conn, option *SessionOption, logger *hyperion.Entry) *Session {
 
-	// 日志
-	name := fmt.Sprintf("%s.ses.%d", peer, id)
-	logger := log.Std(name)
-	logger.SetLevel(conf.LogLevel)
+	id := network.SessionID(incremental.Get())
+	logger = logger.WithField(epimetheus.FieldSession, id)
 
 	return &Session{
-		id:      id,
-		conn:    conn,
-		config:  conf,
-		encoder: conf.EncoderMaker.New(),
-		queue:   queue.New(conf.QueueLen),
-		logger:  logger,
+		id:     id,
+		conn:   conn,
+		option: option,
+		queue:  queue.New(option.QueueLen),
+		logger: logger,
 	}
 }

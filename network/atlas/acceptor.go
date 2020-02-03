@@ -1,22 +1,67 @@
-package tcp
+package atlas
 
 import (
-	"github.com/laconiz/eros/log"
-	"github.com/laconiz/eros/network"
 	"net"
 	"strings"
 	"sync"
+
+	"github.com/laconiz/eros/hyperion"
+	"github.com/laconiz/eros/log"
+	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/epimetheus"
+	"github.com/laconiz/eros/network/incremental"
 )
 
 type Acceptor struct {
-	conf       AcceptorConfig      // 配置
+	state      network.State
+	option     AcceptorOption      // 配置
 	listener   net.Listener        // 监听器
 	sessionMgr *network.SessionMgr // session管理器
-	logger     *log.Logger         // 日志
+	logger     *hyperion.Entry     // 日志
 	mutex      sync.Mutex
 }
 
+func (a *Acceptor) run() net.Listener {
+
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	if a.state != network.Stopped {
+		return nil
+	}
+
+	listener, err := net.Listen("tcp", a.option.Addr)
+	if err != nil {
+		a.logger.WithError(err).Error("listen error")
+		return nil
+	}
+
+	a.listener = listener
+	return listener
+}
+
+const contentListenerClosed = "use of closed network connection"
+
 func (a *Acceptor) Run() {
+
+	listener := a.run()
+	if listener == nil {
+		return
+	}
+
+	a.logger.Info(epimetheus.ContentStarted)
+
+	for {
+
+		conn, err := listener.Accept()
+		if err != nil || !strings.Contains(err.Error(), contentListenerClosed) {
+			a.logger.WithError(err).Error("accept error")
+			break
+		}
+
+		sesID := (network.SessionID)(incremental.Get())
+		ses := newSession()
+	}
 
 	// 检查状态
 	a.mutex.Lock()
@@ -26,7 +71,7 @@ func (a *Acceptor) Run() {
 	}
 
 	// 监听端口
-	listener, err := net.Listen("tcp", a.conf.Addr)
+	listener, err := net.Listen("atlas", a.conf.Addr)
 	if err != nil {
 		a.logger.Errorf("listen at %s error: %v", a.conf.Addr, err)
 		return
@@ -41,8 +86,8 @@ func (a *Acceptor) Run() {
 
 		// 建立连接
 		conn, err := listener.Accept()
-		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-			a.logger.Errorf("accept error: %v", err)
+		if err != nil && !strings.Contains(err.Error()) {
+			a.logger.WithError(err).Error("accept error")
 			break
 		}
 
@@ -106,7 +151,7 @@ func (a *Acceptor) onSessionClose(ses *Session) {
 	a.sessionMgr.Del(ses)
 }
 
-func NewAcceptor(conf AcceptorConfig) network.Acceptor {
+func NewAcceptor(conf AcceptorOption) network.Acceptor {
 
 	conf.make()
 

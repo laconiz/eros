@@ -43,7 +43,7 @@ func (a *Acceptor) Run() {
 	if server == nil {
 		return
 	}
-	a.logger.WithField(epimetheus.FieldAddr, server.Addr).Infof(epimetheus.ContentStarted)
+	a.logger.Infof(epimetheus.ContentStarted)
 	err := server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		a.logger.WithError(err).Error(epimetheus.ContentStopped)
