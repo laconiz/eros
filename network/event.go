@@ -1,16 +1,31 @@
 package network
 
-import "github.com/laconiz/eros/holder/message"
+import (
+	"github.com/laconiz/eros/holder/message"
+	"github.com/laconiz/eros/network/session"
+)
 
 type HandlerFunc func(*Event)
 
 type Event struct {
-	ID  message.ID
-	Msg interface{}
-	Ses Session
+	Meta message.Meta
+	Msg  interface{}
+	Ses  session.Session
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+func NewConnectedEvent(ses session.Session) *Event {
+	return &Event{Meta: metaConnected, Msg: &Connected{}, Ses: ses}
+}
+
+func NewDisconnectedEvent(ses session.Session) *Event {
+	return &Event{Meta: metaDisconnected, Msg: &Disconnected{}, Ses: ses}
+}
+
+func NewConnectFailedEvent() *Event {
+	return &Event{Meta: metaConnectFailed, Msg: &ConnectFailed{}}
+}
 
 type Connected struct {
 }
@@ -22,28 +37,24 @@ type ConnectFailed struct {
 }
 
 var (
-	ConnectedMetaID     message.ID
-	DisconnectedMetaID  message.ID
-	ConnectFailedMetaID message.ID
+	metaConnected     message.Meta
+	metaDisconnected  message.Meta
+	metaConnectFailed message.Meta
 )
 
 func init() {
 
-	meta, err := message.Register(Connected{}, message.JsonCodec())
-	if err != nil {
-		panic(err)
-	}
-	ConnectedMetaID = meta.ID()
+	var err error
 
-	meta, err = message.Register(Disconnected{}, message.JsonCodec())
-	if err != nil {
+	if metaConnected, err = message.Register(Connected{}, message.JsonCodec()); err != nil {
 		panic(err)
 	}
-	DisconnectedMetaID = meta.ID()
 
-	meta, err = message.Register(ConnectFailed{}, message.JsonCodec())
-	if err != nil {
+	if metaDisconnected, err = message.Register(Disconnected{}, message.JsonCodec()); err != nil {
 		panic(err)
 	}
-	ConnectFailedMetaID = meta.ID()
+
+	if metaConnectFailed, err = message.Register(ConnectFailed{}, message.JsonCodec()); err != nil {
+		panic(err)
+	}
 }

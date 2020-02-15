@@ -1,9 +1,10 @@
 package cipher
 
 type Cipher interface {
-	Encipher([]byte) ([]byte, error)
-	Decipher([]byte) ([]byte, error)
+	Encode([]byte) ([]byte, error)
+	Decode([]byte) ([]byte, error)
 }
 
-type AesCipher struct {
+type Maker interface {
+	New() Cipher
 }

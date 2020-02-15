@@ -1,9 +1,12 @@
 package json
 
 import (
+	"fmt"
 	jsonIter "github.com/json-iterator/go"
 	"github.com/json-iterator/go/extra"
 )
+
+type RawMessage = jsonIter.RawMessage
 
 var json jsonIter.API
 
@@ -13,6 +16,14 @@ func Marshal(v interface{}) ([]byte, error) {
 
 func Unmarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
+}
+
+func String(v interface{}) string {
+	raw, err := Marshal(v)
+	if err == nil {
+		return string(raw)
+	}
+	return fmt.Sprintf("marshal %+v error: %v", v, err)
 }
 
 func init() {

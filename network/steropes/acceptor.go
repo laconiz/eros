@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/laconiz/eros/hyperion"
+	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/epimetheus"
 	"github.com/laconiz/eros/utils/ioc"
@@ -17,7 +17,7 @@ const module = "steropes"
 
 func NewAcceptor(option AcceptorOption) (*Acceptor, error) {
 	option.make()
-	logger := hyperion.NewEntry(module).WithField(epimetheus.FieldName, option.Name)
+	logger := logis.NewEntry(module).WithField(epimetheus.FieldName, option.Name)
 	squirt := ioc.New().Params(option.Params...).Functions(option.Functions...)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
@@ -34,7 +34,7 @@ func NewAcceptor(option AcceptorOption) (*Acceptor, error) {
 type Acceptor struct {
 	state  network.State
 	server *http.Server
-	logger *hyperion.Entry
+	logger *logis.Entry
 	mutex  sync.RWMutex
 }
 

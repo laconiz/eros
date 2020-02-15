@@ -32,7 +32,7 @@ func (m *metaMgr) Register(msg interface{}, codec Codec) (Meta, error) {
 		typo = typo.Elem()
 	}
 
-	name := typo.Name()
+	name := typo.String()
 
 	hash := fnv.New32()
 	hash.Write([]byte(name))

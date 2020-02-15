@@ -39,7 +39,7 @@ func ParsePairs(prefix string, pairs api.KVPairs, receiver interface{}, strict b
 		value := reflect.New(typo.Elem())
 		if err := json.Unmarshal(pair.Value, value.Interface()); err != nil {
 			if strict {
-				return err
+				return fmt.Errorf("unmarshal {%s:%s} error: %v", pair.Key, string(pair.Value), err)
 			}
 			continue
 		}

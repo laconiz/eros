@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/laconiz/eros/hyperion"
+	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/network/steropes"
 	"github.com/laconiz/eros/network/steropes/example"
 )
@@ -22,4 +22,4 @@ func main() {
 	logger.Info(*ack)
 }
 
-var logger = hyperion.NewEntry("main")
+var logger = logis.NewEntry("main")

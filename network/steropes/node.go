@@ -12,7 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/laconiz/eros/hyperion"
+	"github.com/laconiz/eros/logis"
 )
 
 // 节点信息
@@ -27,7 +27,7 @@ type Node struct {
 	NoLog bool
 }
 
-func handleNode(router gin.IRouter, node *Node, base *ioc.Squirt, logger *hyperion.Entry) error {
+func handleNode(router gin.IRouter, node *Node, base *ioc.Squirt, logger *logis.Entry) error {
 
 	for method, handler := range node.Handlers {
 
@@ -85,7 +85,7 @@ func handleNode(router gin.IRouter, node *Node, base *ioc.Squirt, logger *hyperi
 	return nil
 }
 
-func handleRouter(invoker ioc.Invoker, handler ResponseHandler, logger *hyperion.Entry, log bool) gin.HandlerFunc {
+func handleRouter(invoker ioc.Invoker, handler ResponseHandler, logger *logis.Entry, log bool) gin.HandlerFunc {
 
 	return func(ctx *gin.Context) {
 

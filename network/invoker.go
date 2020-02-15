@@ -2,7 +2,6 @@ package network
 
 import (
 	"fmt"
-
 	"github.com/laconiz/eros/holder/message"
 )
 
@@ -15,7 +14,7 @@ type StdInvoker struct {
 }
 
 func (i *StdInvoker) Invoke(e *Event) {
-	if handler, ok := i.handlers[e.ID]; ok {
+	if handler, ok := i.handlers[e.Meta.ID()]; ok {
 		handler(e)
 	}
 }
