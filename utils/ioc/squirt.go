@@ -3,180 +3,194 @@
 package ioc
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/codegangsta/inject"
 )
 
-// 创建一个参数解释器
-func New() *Squirt {
-	return &Squirt{
-		injector: inject.New(),
-		builders: map[reflect.Type]*Builder{},
-	}
-}
+type Injector = inject.Injector
 
 // 依赖注入接口
-type Invoker func(...interface{}) ([]interface{}, []reflect.Value, error)
+type Invoker func(params ...interface{}) (arguments []interface{}, result []reflect.Value, err error)
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// 创建一个参数解释器
+func New() *Squirt {
+	return &Squirt{injector: inject.New(), builders: map[Type]*Builder{}}
+}
 
 // 注入器
 type Squirt struct {
-	// 基础参数
-	params []interface{}
-	//
-	injector inject.Injector
-	// 参数生成函数
-	builders map[reflect.Type]*Builder
-	//
-	err error
+	params   []interface{}     // 基础参数
+	injector Injector          // 参数注入器
+	builders map[Type]*Builder // 参数生成函数
+	err      error             // 注入器错误
 }
 
 // 拷贝一个注入器
-func (s *Squirt) Copy() *Squirt {
+func (squirt *Squirt) Copy() *Squirt {
+
 	n := New()
-	n.err = s.err
-	if n.err == nil {
-		for _, param := range s.params {
-			n.params = append(n.params, param)
-			n.injector.Map(param)
-		}
-		for key, value := range s.builders {
-			n.builders[key] = value
-		}
+
+	n.err = squirt.err
+
+	for _, param := range squirt.params {
+		n.params = append(n.params, param)
+		n.injector.Map(param)
 	}
+
+	for key, value := range squirt.builders {
+		n.builders[key] = value
+	}
+
 	return n
 }
 
 // 添加基础参数
-func (s *Squirt) Params(params ...interface{}) *Squirt {
-	return s.safeExecute(func() error {
+func (squirt *Squirt) Params(params ...interface{}) *Squirt {
+
+	return squirt.safeExecute(func() error {
+
 		for _, param := range params {
-			// 检查参数类型
+
 			typo := reflect.TypeOf(param)
 			if typo == nil {
-				return &Error{msg: "nil param", typo: typo}
+				return fmt.Errorf("invalid param: %v", typo)
 			}
-			// 重复参数类型
-			if s.injector.Get(typo).IsValid() {
-				return &Error{msg: "conflict param", typo: typo}
+
+			if squirt.injector.Get(typo).IsValid() {
+				return fmt.Errorf("conflict param: %v", typo)
 			}
-			s.params = append(s.params, param)
-			s.injector.Map(param)
+
+			squirt.params = append(squirt.params, param)
+			squirt.injector.Map(param)
 		}
 		return nil
 	})
 }
 
 // 添加参数生成器
-func (s *Squirt) Functions(functions ...interface{}) *Squirt {
-	return s.safeExecute(func() error {
-		for _, function := range functions {
-			// 构造参数生成器
-			builder, err := newBuilder(function)
+func (squirt *Squirt) Creators(creators ...interface{}) *Squirt {
+
+	return squirt.safeExecute(func() error {
+
+		for _, creator := range creators {
+
+			builder, err := newBuilder(creator)
 			if err != nil {
 				return err
 			}
-			// 检查重复参数
-			if s.hasArg(builder.typo) {
-				return &Error{msg: "conflict builder", typo: builder.typo}
+
+			if squirt.hasArg(builder.typo) {
+				return fmt.Errorf("conflict creator: %v", builder.typo)
 			}
-			s.builders[builder.typo] = builder
+
+			squirt.builders[builder.typo] = builder
 		}
+
 		return nil
 	})
 }
 
 // 添加参数生成器
-func (s *Squirt) Function(typo reflect.Type, function interface{}) *Squirt {
-	return s.safeExecute(func() error {
-		// 检查重复参数
-		if s.hasArg(typo) {
-			return &Error{msg: "conflict builder", typo: typo}
+func (squirt *Squirt) Creator(typo Type, creator interface{}) *Squirt {
+
+	return squirt.safeExecute(func() error {
+
+		if squirt.hasArg(typo) {
+			return fmt.Errorf("conflict creator: %v", typo)
 		}
-		// 构造参数生成器
-		builder, err := newBuilder(function)
+
+		builder, err := newBuilder(creator)
 		if err != nil {
 			return err
 		}
-		// 重置参数类型
+
 		builder.typo = typo
-		s.builders[typo] = builder
+		squirt.builders[typo] = builder
 		return nil
 	})
 }
 
 // 当注入器状态正常时执行函数
-func (s *Squirt) safeExecute(f func() error) *Squirt {
-	if s.err == nil {
-		s.err = f()
+func (squirt *Squirt) safeExecute(f func() error) *Squirt {
+	if squirt.err == nil {
+		squirt.err = f()
 	}
-	return s
+	return squirt
 }
 
 // 查询参数
-func (s *Squirt) hasArg(typo reflect.Type) bool {
-	return s.injector.Get(typo).IsValid() || s.builders[typo] != nil
+func (squirt *Squirt) hasArg(typo reflect.Type) bool {
+	return squirt.injector.Get(typo).IsValid() || squirt.builders[typo] != nil
 }
 
 // 查询状态
-func (s *Squirt) Error() error {
-	return s.err
+func (squirt *Squirt) Error() error {
+	return squirt.err
 }
 
-func (s *Squirt) Handle(handler interface{}, args ...interface{}) (Invoker, error) {
-	// 校验接口类型
+// 生成一个接口
+func (squirt *Squirt) Handle(handler interface{}, args ...interface{}) (Invoker, error) {
+
+	if squirt.err != nil {
+		return nil, squirt.err
+	}
+
 	typo, err := checkHandler(handler)
 	if err != nil {
 		return nil, err
 	}
-	// 基础参数
+
 	injector := inject.New()
-	injector.SetParent(s.injector)
+	injector.SetParent(squirt.injector)
 	for _, arg := range args {
 		injector.Map(arg)
 	}
-	// 参数生成链
-	chain := Chain{}
+
+	var chain Chain
 	for i := 0; i < typo.NumIn(); i++ {
+
 		in := typo.In(i)
 		if injector.Get(in).IsValid() {
 			continue
 		}
-		// 构造参数生成链
-		c, err := s.makeChain(in, injector, map[reflect.Type]bool{})
+
+		subChain, err := squirt.makeChain(in, injector, map[Type]bool{})
 		if err != nil {
 			return nil, err
 		}
-		chain = append(chain, c...)
+		chain = append(chain, subChain...)
 	}
-	// 构造调用接口
-	return s.invoker(chain.Distinct(), handler), nil
+
+	return squirt.makeInvoker(distinctChain(chain), handler), nil
 }
 
-//
-func (s *Squirt) invoker(chain Chain, handler interface{}) Invoker {
+// 生成依赖注入调用接口
+func (squirt *Squirt) makeInvoker(chain Chain, handler interface{}) Invoker {
 
-	return func(args ...interface{}) ([]interface{}, []reflect.Value, error) {
+	return func(params ...interface{}) ([]interface{}, []reflect.Value, error) {
 
-		// 构造基础参数
 		injector := inject.New()
-		injector.SetParent(s.injector)
-		for _, arg := range args {
-			injector.Map(arg)
+		injector.SetParent(squirt.injector)
+		for _, param := range params {
+			injector.Map(param)
 		}
 
 		var arguments []interface{}
 
-		// 调用参数生成链
 		for _, builder := range chain {
 
-			values, err := injector.Invoke(builder.function)
+			values, err := injector.Invoke(builder.creator)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("invoke creator[%v] error: %w", builder.typo, err)
 			}
 
 			if !values[1].IsNil() {
-				return nil, nil, values[1].Interface().(error)
+				err := values[1].Interface().(error)
+				return nil, nil, fmt.Errorf("build %v error: %w", builder.typo, err)
 			}
 
 			if values[0].CanInterface() {
@@ -185,71 +199,95 @@ func (s *Squirt) invoker(chain Chain, handler interface{}) Invoker {
 			}
 		}
 
-		// 调用接口
 		values, err := injector.Invoke(handler)
-		return arguments, values, err
+		if err != nil {
+			return nil, nil, fmt.Errorf("invoke handler error: %w", err)
+		}
+		return arguments, values, nil
 	}
 }
 
 // 生成指定类型的参数生成链
-func (s *Squirt) makeChain(typo reflect.Type, injector inject.Injector, paths map[reflect.Type]bool) (Chain, error) {
-	// 获取参数生成器
-	builder, ok := s.builders[typo]
+func (squirt *Squirt) makeChain(typo Type, injector Injector, paths map[Type]bool) (Chain, error) {
+
+	builder, ok := squirt.builders[typo]
 	if !ok {
-		return nil, &Error{msg: "unknown argument", typo: typo}
+		return nil, fmt.Errorf("unknown argument: %v", typo)
 	}
-	// 循环链
+
 	if _, ok := paths[builder.typo]; ok {
-		return nil, &Error{msg: "circle builder", typo: builder.typo}
+		return nil, fmt.Errorf("circle creator: %v", typo)
 	}
-	// 检索参数列表
+
 	var chain Chain
-	functionType := reflect.TypeOf(builder.function)
-	for i := 0; i < functionType.NumIn(); i++ {
-		in := functionType.In(i)
-		// 参数可以直接访问
+
+	creatorType := reflect.TypeOf(builder.creator)
+	for i := 0; i < creatorType.NumIn(); i++ {
+
+		in := creatorType.In(i)
 		if injector.Get(in).IsValid() {
 			continue
 		}
-		// 构造新路径
-		ps := map[reflect.Type]bool{builder.typo: true}
+
+		newPaths := map[Type]bool{typo: true}
 		for key, value := range paths {
-			ps[key] = value
+			newPaths[key] = value
 		}
-		// 构造子链
-		c, err := s.makeChain(in, injector, ps)
+
+		subChain, err := squirt.makeChain(in, injector, newPaths)
 		if err != nil {
 			return nil, err
 		}
-		chain = append(chain, c...)
+		chain = append(chain, subChain...)
 	}
-	return append(chain, builder), nil
+
+	return chain, nil
 }
 
-// 获取参数生成器中没有的参数
-func (s *Squirt) UnknownArgs(handler interface{}) ([]reflect.Type, error) {
-	// 校验接口类型
+// 获取依赖注入器中不存在的参数
+func (squirt *Squirt) UnknownArgs(handler interface{}) ([]Type, error) {
+
 	typo, err := checkHandler(handler)
 	if err != nil {
 		return nil, err
 	}
-	// 未知参数列表
+
 	var args []reflect.Type
-	// 获取未知参数
 	for i := 0; i < typo.NumIn(); i++ {
 		in := typo.In(i)
-		if !s.hasArg(in) {
+		if !squirt.hasArg(in) {
 			args = append(args, in)
 		}
 	}
+
 	return args, nil
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 // 获取接口类型
-func checkHandler(handler interface{}) (reflect.Type, error) {
+func checkHandler(handler interface{}) (Type, error) {
+
 	typo := reflect.TypeOf(handler)
 	if typo == nil || typo.Kind() != reflect.Func {
-		return nil, &Error{msg: "invalid handler", typo: typo}
+		return nil, fmt.Errorf("invalid handler type: %v", typo)
 	}
+
 	return typo, nil
+}
+
+// 参数生成链去重
+func distinctChain(chain Chain) Chain {
+
+	var result Chain
+	types := map[Type]bool{}
+
+	for _, builder := range chain {
+		if !types[builder.typo] {
+			types[builder.typo] = true
+			result = append(result, builder)
+		}
+	}
+
+	return result
 }
