@@ -2,7 +2,6 @@ package logis
 
 import (
 	"fmt"
-	"github.com/laconiz/eros/utils/json"
 	"time"
 )
 
@@ -19,33 +18,17 @@ type Fields map[string]interface{}
 
 // 日志入口
 type Entry struct {
-	Data    Fields          `json:"-"`
-	RawData json.RawMessage `json:"field,omitempty"`
-	Hooks   *Hooks          `json:"-"`
-}
-
-func (e *Entry) copy() *Entry {
-	n := &Entry{Data: Fields{}, RawData: nil, Hooks: e.Hooks}
-	for key, value := range e.Data {
-		n.Data[key] = value
-	}
-	return n
+	Context    *Context   `json:"-"`
+	ContextRaw ContextRaw `json:"field,omitempty"`
+	Strap      *Strap     `json:"-"`
 }
 
 func (e *Entry) Field(key string, value interface{}) Logger {
-	n := e.copy()
-	n.Data[key] = value
-	n.RawData = nil
-	return n
+	return &Entry{Context: NewContext(e.Context).Field(key, value), Strap: e.Strap}
 }
 
 func (e *Entry) Fields(fields Fields) Logger {
-	n := e.copy()
-	for key, value := range fields {
-		n.Data[key] = value
-	}
-	n.RawData = nil
-	return n
+	return &Entry{Context: NewContext(e.Context).Fields(fields), Strap: e.Strap}
 }
 
 func (e *Entry) Debug(args ...interface{}) {
@@ -89,28 +72,17 @@ func (e *Entry) Fatalf(format string, args ...interface{}) {
 }
 
 func (e *Entry) Log(level Level, args ...interface{}) {
-	if e.Hooks.enable(level) {
+	if e.Strap.Enable(level) {
 		e.log(level, fmt.Sprint(args...))
 	}
 }
 
 func (e *Entry) Logf(level Level, format string, args ...interface{}) {
-	if e.Hooks.enable(level) {
+	if e.Strap.Enable(level) {
 		e.log(level, fmt.Sprintf(format, args...))
 	}
 }
 
 func (e *Entry) log(level Level, message string) {
-	e.Hooks.fire(&Log{Entry: e, Level: level, Time: time.Now(), Message: message})
-}
-
-func (e *Entry) ParseField() error {
-	if e.RawData == nil {
-		raw, err := json.Marshal(e.Data)
-		if err != nil {
-			return err
-		}
-		e.RawData = raw
-	}
-	return nil
+	e.Strap.Hook(&Log{Entry: e, Level: level, Time: time.Now(), Message: message})
 }

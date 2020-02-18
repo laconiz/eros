@@ -241,21 +241,27 @@ func (squirt *Squirt) makeChain(typo Type, injector Injector, paths map[Type]boo
 		chain = append(chain, subChain...)
 	}
 
-	return chain, nil
+	return append(chain, builder), nil
 }
 
 // 获取依赖注入器中不存在的参数
-func (squirt *Squirt) UnknownArgs(handler interface{}) ([]Type, error) {
+func (squirt *Squirt) UnknownArgs(handler interface{}, params ...interface{}) ([]Type, error) {
 
 	typo, err := checkHandler(handler)
 	if err != nil {
 		return nil, err
 	}
 
-	var args []reflect.Type
+	injector := inject.New()
+	injector.SetParent(squirt.injector)
+	for _, param := range params {
+		injector.Map(param)
+	}
+
+	var args []Type
 	for i := 0; i < typo.NumIn(); i++ {
 		in := typo.In(i)
-		if !squirt.hasArg(in) {
+		if !injector.Get(in).IsValid() && squirt.builders[in] == nil {
 			args = append(args, in)
 		}
 	}

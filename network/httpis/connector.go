@@ -1,4 +1,4 @@
-package steropes
+package httpis
 
 import (
 	"bytes"
@@ -23,18 +23,12 @@ type Connector struct {
 }
 
 func (c *Connector) clone() *Connector {
-	return &Connector{
-		client: c.client,
-		url:    c.url,
-		method: c.method,
-		header: c.header.Clone(),
-	}
+	return &Connector{client: c.client, url: c.url, method: c.method, header: c.header.Clone()}
 }
 
 func (c *Connector) URL(url string) *Connector {
 	n := c.clone()
-	if !strings.HasPrefix(url, httpPrefix) &&
-		!strings.HasPrefix(url, httpsPrefix) {
+	if !strings.HasPrefix(url, httpPrefix) && !strings.HasPrefix(url, httpsPrefix) {
 		url = httpPrefix + url
 	}
 	n.url = url
@@ -55,7 +49,6 @@ func (c *Connector) Header(header http.Header) *Connector {
 
 func (c *Connector) Do(req, resp interface{}) error {
 
-	// 构造请求数据
 	var reader io.Reader
 	if req != nil {
 		raw, err := json.Marshal(req)
@@ -65,14 +58,12 @@ func (c *Connector) Do(req, resp interface{}) error {
 		reader = bytes.NewReader(raw)
 	}
 
-	// 构造request
 	request, err := http.NewRequest(c.method, c.url, reader)
 	if err != nil {
 		return err
 	}
 	request.Header = c.header
 
-	// 请求接口
 	response, err := c.client.Do(request)
 	if err != nil {
 		return err
@@ -83,7 +74,6 @@ func (c *Connector) Do(req, resp interface{}) error {
 		return nil
 	}
 
-	// 读取返回数据
 	stream, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err

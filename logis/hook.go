@@ -6,43 +6,34 @@ import (
 	"os"
 )
 
-// 生成一个日志钩子列表
-func NewHooks(formatter Formatter, writers map[Level]io.Writer) *Hooks {
-	hook := NewHook(formatter)
-	for level, writer := range writers {
-		hook.AddWriter(level, writer)
-	}
-	return hook.Hooks()
-}
-
 // 日志钩子列表
-type Hooks struct {
+type Strap struct {
 	level Level
 	hooks []*Hook
 }
 
 // 添加一个日志钩子
-func (h *Hooks) AddHook(hook *Hook) *Hooks {
-	h.hooks = append(h.hooks, hook)
-	h.level = MinLevel(h.level, hook.level)
-	return h
+func (strap *Strap) AddHook(hook *Hook) *Strap {
+	strap.hooks = append(strap.hooks, hook)
+	strap.level = MinLevel(strap.level, hook.level)
+	return strap
 }
 
 // 生成日志入口
-func (h *Hooks) Entry(key string, value interface{}) *Entry {
-	return &Entry{Data: Fields{key: value}, Hooks: h}
+func (strap *Strap) Entry() *Entry {
+	return &Entry{Context: NewContext(nil), Strap: strap}
 }
 
 // 是否有日志钩子需要调用
-func (h *Hooks) enable(level Level) bool {
-	return h.level <= level
+func (strap *Strap) Enable(level Level) bool {
+	return strap.level <= level
 }
 
 // 调用日志钩子
-func (h *Hooks) fire(log *Log) {
-	for _, hook := range h.hooks {
-		if hook.enable(log.Level) {
-			hook.fire(log)
+func (strap *Strap) Hook(log *Log) {
+	for _, hook := range strap.hooks {
+		if hook.Enable(log.Level) {
+			hook.Hook(log)
 		}
 	}
 }
@@ -62,12 +53,12 @@ type Hook struct {
 }
 
 // 日志钩子是否需要调用
-func (h *Hook) enable(level Level) bool {
+func (h *Hook) Enable(level Level) bool {
 	return h.level <= level
 }
 
 // 调用钩子
-func (h *Hook) fire(log *Log) {
+func (h *Hook) Hook(log *Log) {
 
 	bytes, err := h.formatter.Format(log)
 	if err != nil {
@@ -94,13 +85,13 @@ func (h *Hook) AddWriter(level Level, writer io.Writer) *Hook {
 }
 
 // 将钩子构造成日志钩子列表
-func (h *Hook) Hooks() *Hooks {
-	return &Hooks{level: h.level, hooks: []*Hook{h}}
+func (h *Hook) Strap() *Strap {
+	return &Strap{level: h.level, hooks: []*Hook{h}}
 }
 
 // 生成日志入口
-func (h *Hook) Entry(key string, value interface{}) *Entry {
-	return &Entry{Data: Fields{key: value}, Hooks: h.Hooks()}
+func (h *Hook) Entry() *Entry {
+	return h.Strap().Entry()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

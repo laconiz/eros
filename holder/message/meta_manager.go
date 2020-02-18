@@ -12,6 +12,7 @@ type MetaMgr interface {
 	RegisterEx(id ID, name string, msg interface{}, codec Codec) (Meta, error)
 	MetaByID(id ID) (Meta, bool)
 	MetaByName(name string) (Meta, bool)
+	MetaByType(typo reflect.Type) (Meta, bool)
 	MetaByMessage(msg interface{}) (Meta, bool)
 }
 
@@ -87,6 +88,11 @@ func (m *metaMgr) MetaByName(name string) (Meta, bool) {
 	return meta, ok
 }
 
+func (m *metaMgr) MetaByType(typo reflect.Type) (Meta, bool) {
+	meta, ok := m.typeMap[typo]
+	return meta, ok
+}
+
 func (m *metaMgr) MetaByMessage(msg interface{}) (Meta, bool) {
 
 	typo := reflect.TypeOf(msg)
@@ -118,6 +124,10 @@ func MetaByID(id ID) (Meta, bool) {
 
 func MetaByName(name string) (Meta, bool) {
 	return globalMetaMgr.MetaByName(name)
+}
+
+func MetaByType(typo reflect.Type) (Meta, bool) {
+	return globalMetaMgr.MetaByType(typo)
 }
 
 func MetaByMessage(msg interface{}) (Meta, bool) {

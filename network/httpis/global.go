@@ -1,4 +1,4 @@
-package steropes
+package httpis
 
 import (
 	"net/http"
@@ -6,30 +6,30 @@ import (
 )
 
 func URL(url string) *Connector {
-	return globalConnector.URL(url)
+	return global.URL(url)
 }
 
 func Header(header http.Header) *Connector {
-	return globalConnector.Header(header)
+	return global.Header(header)
 }
 
 func Put(req, resp interface{}) error {
-	return globalConnector.Put(req, resp)
+	return global.Put(req, resp)
 }
 
 func Get(req, resp interface{}) error {
-	return globalConnector.Get(req, resp)
+	return global.Get(req, resp)
 }
 
 func Post(req, resp interface{}) error {
-	return globalConnector.Post(req, resp)
+	return global.Post(req, resp)
 }
 
 func Delete(req, resp interface{}) error {
-	return globalConnector.Delete(req, resp)
+	return global.Delete(req, resp)
 }
 
-var globalConnector = NewConnector(&http.Client{
+var global = NewConnector(&http.Client{
 	Transport: &http.Transport{
 		MaxIdleConns:        20,
 		MaxIdleConnsPerHost: 2,
