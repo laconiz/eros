@@ -5,7 +5,7 @@ package encoder
 import (
 	"bytes"
 	"errors"
-	"github.com/laconiz/eros/holder/message"
+	"github.com/laconiz/eros/network/message"
 )
 
 type nameEncoder struct {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/laconiz/eros/holder/message"
+	"github.com/laconiz/eros/network/message"
 )
 
 type idEncoder struct {

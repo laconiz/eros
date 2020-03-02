@@ -7,9 +7,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	queue2 "github.com/laconiz/eros/holder/queue"
 	"github.com/laconiz/eros/log"
 	"github.com/laconiz/eros/network"
+	queue2 "github.com/laconiz/eros/network/queue"
 )
 
 type SessionMgr interface {

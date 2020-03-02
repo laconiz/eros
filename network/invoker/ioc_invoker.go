@@ -2,9 +2,9 @@ package invoker
 
 import (
 	"fmt"
-	"github.com/laconiz/eros/holder/message"
 	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/message"
 	"github.com/laconiz/eros/network/session"
 	"github.com/laconiz/eros/utils/ioc"
 	"reflect"

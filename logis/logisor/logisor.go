@@ -71,7 +71,7 @@ func init() {
 	if err := consulor.KV().Load(path, option); err != nil {
 		logger = logis.NewHook(logis.NewTextFormatter()).
 			AddWriter(logis.INFO, os.Stdout).
-			Entry(logis.Module, module)
+			Entry()
 		return
 	}
 }

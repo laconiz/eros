@@ -37,7 +37,7 @@ func (p *sizePacker) Decode(conn net.Conn) ([]byte, error) {
 
 	var size int32
 	if err := binary.Read(conn, binary.LittleEndian, &size); err != nil {
-		return nil, fmt.Errorf("read heaader error: %w", err)
+		return nil, fmt.Errorf("read header error: %w", err)
 	}
 
 	stream := make([]byte, size)

@@ -1,11 +1,11 @@
 package socket
 
 import (
-	"github.com/laconiz/eros/holder/message"
-	"github.com/laconiz/eros/holder/queue"
 	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/cipher"
+	"github.com/laconiz/eros/network/message"
+	"github.com/laconiz/eros/network/queue"
 	"github.com/laconiz/eros/network/session"
 	"github.com/laconiz/eros/network/socket/packer"
 	"net"
@@ -105,7 +105,6 @@ func (ses *Session) read() {
 	ses.log.Info("read loop break")
 }
 
-// 读取线程
 func (ses *Session) write() {
 
 	opt := ses.opt

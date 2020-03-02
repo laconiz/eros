@@ -21,7 +21,6 @@ func NewAcceptor(opt AccOption) *Acceptor {
 		log: logisor.Fields(logis.Fields{
 			logis.Module:      module,
 			network.FieldName: opt.Name,
-			network.FieldAddr: opt.Addr,
 		}),
 	}
 }
@@ -54,7 +53,7 @@ func (acc *Acceptor) Run() {
 	}
 	acc.listener = listener
 
-	acc.log.Info("started")
+	acc.log.Infof("listen at: %s", acc.option.Addr)
 
 	go func() {
 

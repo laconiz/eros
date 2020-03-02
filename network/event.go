@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/laconiz/eros/holder/message"
+	"github.com/laconiz/eros/network/message"
 	"github.com/laconiz/eros/network/session"
 )
 

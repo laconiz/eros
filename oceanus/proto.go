@@ -3,8 +3,8 @@
 package oceanus
 
 import (
-	"github.com/laconiz/eros/holder/message"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/message"
 )
 
 // 网格ID UUID.V3
