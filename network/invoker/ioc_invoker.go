@@ -10,12 +10,6 @@ import (
 	"reflect"
 )
 
-type Invoker interface {
-	Invoke(event *network.Event)
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-
 func NewSocketIOCInvoker(log logis.Logger) *SocketIOCInvoker {
 	return &SocketIOCInvoker{squirt: ioc.New(), log: log, handlers: map[message.ID][]network.HandlerFunc{}}
 }

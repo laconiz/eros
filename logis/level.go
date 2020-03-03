@@ -2,7 +2,6 @@ package logis
 
 import (
 	"fmt"
-	"github.com/laconiz/eros/utils/mathe"
 )
 
 type Level int8
@@ -13,6 +12,10 @@ func (level Level) Valid() bool {
 		return true
 	}
 	return false
+}
+
+func (level Level) Enable(other Level) bool {
+	return level <= other
 }
 
 func (level Level) Grade() Grade {
@@ -67,7 +70,3 @@ const (
 	FATAL
 	INVALID
 )
-
-func MinLevel(a, b Level) Level {
-	return Level(mathe.MinInt8(int8(a), int8(b)))
-}

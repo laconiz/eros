@@ -1,0 +1,113 @@
+package remote
+
+import (
+	"errors"
+	"github.com/laconiz/eros/network/session"
+	"github.com/laconiz/eros/oceanus"
+	"github.com/laconiz/eros/oceanus/proto"
+)
+
+func NewMesh(info *proto.Mesh, state *proto.State, router *oceanus.Router) *Mesh {
+	return &Mesh{
+		info:    info,
+		state:   state,
+		nodes:   map[proto.NodeID]*Node{},
+		types:   map[proto.NodeType]int64{},
+		router:  router,
+		session: nil,
+	}
+}
+
+type Mesh struct {
+	info    *proto.Mesh              // 网格信息
+	state   *proto.State             // 网格状态
+	nodes   map[proto.NodeID]*Node   // 节点列表
+	types   map[proto.NodeType]int64 // 网格节点类型统计
+	router  *oceanus.Router          // 路由器
+	session session.Session          // 网络连接
+}
+
+// 网格信息
+func (mesh *Mesh) Info() *proto.Mesh {
+	return mesh.info
+}
+
+// 网格状态
+func (mesh *Mesh) State() (*proto.State, bool) {
+	return mesh.state, mesh.session != nil
+}
+
+// 向网格发送数据
+func (mesh *Mesh) Push(message *proto.Mail) error {
+	if mesh.session != nil {
+		return mesh.session.Send(message)
+	}
+	return errors.New("invalid session")
+}
+
+// 更新网格状态
+func (mesh *Mesh) UpdateState(state *proto.State) {
+	mesh.state = state
+	mesh.Expired()
+}
+
+// 更新网格连接
+func (mesh *Mesh) UpdateSession(session session.Session) {
+	mesh.session = session
+	mesh.Expired()
+}
+
+// 设置网格过期
+func (mesh *Mesh) Expired() {
+	for typo, count := range mesh.types {
+		if count > 0 {
+			mesh.router.Expired(typo)
+		}
+	}
+}
+
+// 插入一个节点
+func (mesh *Mesh) Insert(info *proto.Node) *Node {
+	// 删除旧节点
+	mesh.Remove(info.ID)
+	// 新建一个节点
+	node := newNode(info, mesh)
+	// 写入节点列表
+	mesh.nodes[info.ID] = node
+	// 插入路由器
+	mesh.router.Insert(node)
+	// 更新节点类型统计列表
+	mesh.types[info.Type]++
+	// 返回数据
+	return node
+}
+
+// 销毁一个节点
+func (mesh *Mesh) Remove(id proto.NodeID) {
+	// 查询节点
+	if node, ok := mesh.nodes[id]; ok {
+		// 销毁节点
+		node.Destroy()
+		// 删除节点列表数据
+		delete(mesh.nodes, id)
+		// 从路由器删除节点
+		mesh.router.Remove(node)
+		// 更新节点类型统计列表
+		mesh.types[node.Info().Type]--
+	}
+}
+
+// 销毁一个网格
+func (mesh *Mesh) Destroy() {
+	// 遍历节点
+	for _, node := range mesh.nodes {
+		// 销毁节点
+		node.Destroy()
+		// 从路由器中删除节点
+		mesh.router.Remove(node)
+	}
+	// 重置节点列表
+	mesh.nodes = map[proto.NodeID]*Node{}
+	// 重置节点类型统计列表
+	mesh.types = map[proto.NodeType]int64{}
+}

@@ -1,12 +1,15 @@
 package logis
 
+import "github.com/laconiz/eros/logis/context"
+
 const (
 	Module = "module"
 )
 
 type Logger interface {
 	Field(key string, value interface{}) Logger
-	Fields(fields Fields) Logger
+	Fields(fields context.Fields) Logger
+	Data(value interface{}) Logger
 	Debug(args ...interface{})
 	Debugf(format string, args ...interface{})
 	Info(args ...interface{})
@@ -20,56 +23,60 @@ type Logger interface {
 }
 
 func NewEmpty() Logger {
-	return &empty{}
+	return &Empty{}
 }
 
-type empty struct {
+type Empty struct {
 }
 
-func (e *empty) Field(string, interface{}) Logger {
-	return e
+func (empty *Empty) Field(string, interface{}) Logger {
+	return empty
 }
 
-func (e *empty) Fields(Fields) Logger {
-	return e
+func (empty *Empty) Fields(context.Fields) Logger {
+	return empty
 }
 
-func (e *empty) Debug(...interface{}) {
-
+func (empty *Empty) Data(interface{}) Logger {
+	return empty
 }
 
-func (e *empty) Debugf(string, ...interface{}) {
-
-}
-
-func (e *empty) Info(...interface{}) {
+func (empty *Empty) Debug(...interface{}) {
 
 }
 
-func (e *empty) Infof(string, ...interface{}) {
+func (empty *Empty) Debugf(string, ...interface{}) {
 
 }
 
-func (e *empty) Warn(...interface{}) {
+func (empty *Empty) Info(...interface{}) {
 
 }
 
-func (e *empty) Warnf(string, ...interface{}) {
+func (empty *Empty) Infof(string, ...interface{}) {
 
 }
 
-func (e *empty) Error(...interface{}) {
+func (empty *Empty) Warn(...interface{}) {
 
 }
 
-func (e *empty) Errorf(string, ...interface{}) {
+func (empty *Empty) Warnf(string, ...interface{}) {
 
 }
 
-func (e *empty) Fatal(...interface{}) {
+func (empty *Empty) Error(...interface{}) {
 
 }
 
-func (e *empty) Fatalf(string, ...interface{}) {
+func (empty *Empty) Errorf(string, ...interface{}) {
+
+}
+
+func (empty *Empty) Fatal(...interface{}) {
+
+}
+
+func (empty *Empty) Fatalf(string, ...interface{}) {
 
 }

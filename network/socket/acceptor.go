@@ -4,6 +4,7 @@ package socket
 
 import (
 	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/logis/context"
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/session"
@@ -18,7 +19,7 @@ func NewAcceptor(opt AccOption) *Acceptor {
 	return &Acceptor{
 		option:   opt,
 		sessions: session.NewManager(),
-		log: logisor.Fields(logis.Fields{
+		log: logisor.Fields(context.Fields{
 			logis.Module:      module,
 			network.FieldName: opt.Name,
 		}),

@@ -5,6 +5,7 @@ package socket
 import (
 	"errors"
 	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/logis/context"
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
 	"net"
@@ -17,7 +18,7 @@ func NewConnector(opt ConnOption) network.Connector {
 	opt.parse()
 	return &Connector{
 		opt: opt,
-		log: logisor.Fields(logis.Fields{
+		log: logisor.Fields(context.Fields{
 			logis.Module:      module,
 			network.FieldName: opt.Name,
 			network.FieldAddr: opt.Addr,

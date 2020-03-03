@@ -2,6 +2,7 @@ package httpis
 
 import (
 	"context"
+	context2 "github.com/laconiz/eros/logis/context"
 	"github.com/laconiz/eros/network/invoker"
 	"net/http"
 	"sync"
@@ -21,7 +22,7 @@ func NewAcceptor(opt AcceptorOption, log logis.Logger) (*Acceptor, error) {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
-	log = log.Fields(logis.Fields{logis.Module: module, network.FieldName: opt.Name})
+	log = log.Fields(context2.Fields{logis.Module: module, network.FieldName: opt.Name})
 
 	invoker := invoker.NewGinInvoker(log).Params(opt.Params...).Creators(opt.Creators...)
 	if err := invoker.Register(engine, opt.Nodes); err != nil {

@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/logis/formatter"
+	"github.com/laconiz/eros/logis/hook"
 	"github.com/laconiz/eros/network/invoker"
 	"net/http"
 	"os"
@@ -16,7 +18,7 @@ func main() {
 
 	var state string
 
-	log := logis.NewHook(logis.NewTextFormatter()).AddWriter(logis.DEBUG, os.Stdout).Entry()
+	log := hook.NewHook(formatter.NewTextFormatter()).AddWriter(logis.DEBUG, os.Stdout).Entry()
 
 	opt := httpis.AcceptorOption{
 		Addr: example.Addr,

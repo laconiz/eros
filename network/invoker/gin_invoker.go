@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/logis/context"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/session"
 	"github.com/laconiz/eros/utils/ioc"
@@ -93,7 +94,7 @@ func (i *GinInvoker) RegisterEx(router gin.IRouter, node *Node) error {
 // 将依赖注入接口转换为gin接口
 func (i *GinInvoker) Handle(node *Node, invoker ioc.Invoker) gin.HandlerFunc {
 
-	log := i.log.Fields(logis.Fields{fieldPath: node.Path, fieldMethod: node.Method})
+	log := i.log.Fields(context.Fields{fieldPath: node.Path, fieldMethod: node.Method})
 
 	return func(ctx *gin.Context) {
 

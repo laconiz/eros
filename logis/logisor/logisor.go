@@ -3,6 +3,9 @@ package logisor
 import (
 	"github.com/laconiz/eros/database/consul/consulor"
 	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/logis/context"
+	"github.com/laconiz/eros/logis/formatter"
+	"github.com/laconiz/eros/logis/hook"
 	"os"
 )
 
@@ -10,7 +13,7 @@ func Field(key string, value interface{}) logis.Logger {
 	return logger.Field(key, value)
 }
 
-func Fields(fields logis.Fields) logis.Logger {
+func Fields(fields context.Fields) logis.Logger {
 	return logger.Fields(fields)
 }
 
@@ -69,8 +72,8 @@ func init() {
 
 	option := &Option{}
 	if err := consulor.KV().Load(path, option); err != nil {
-		logger = logis.NewHook(logis.NewTextFormatter()).
-			AddWriter(logis.INFO, os.Stdout).
+		logger = hook.NewHook(formatter.Text()).
+			Add(logis.INFO, os.Stdout).
 			Entry()
 		return
 	}

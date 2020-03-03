@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/logis/formatter"
+	"github.com/laconiz/eros/logis/hook"
 	"github.com/laconiz/eros/network/httpis"
 	"github.com/laconiz/eros/network/httpis/example"
 	"os"
@@ -35,4 +37,4 @@ func main() {
 	log.Info(ack)
 }
 
-var log = logis.NewHook(logis.NewTextFormatter()).AddWriter(logis.DEBUG, os.Stdout).Entry()
+var log = hook.NewHook(formatter.NewTextFormatter()).AddWriter(logis.DEBUG, os.Stdout).Entry()
