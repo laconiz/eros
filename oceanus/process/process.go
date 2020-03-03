@@ -2,6 +2,9 @@ package process
 
 import (
 	"fmt"
+	"github.com/hashicorp/consul/api"
+	"github.com/laconiz/eros/database/consul"
+	"github.com/laconiz/eros/database/consul/consulor"
 	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
@@ -10,7 +13,10 @@ import (
 	"github.com/laconiz/eros/oceanus/proto"
 	"github.com/laconiz/eros/oceanus/remote"
 	uuid "github.com/satori/go.uuid"
+	"os"
+	"os/signal"
 	"sync"
+	"time"
 )
 
 var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"))
@@ -56,7 +62,7 @@ type Process struct {
 }
 
 // 同步连接信息
-func (process *Process) syncConnections(meshes []*proto.Mesh) {
+func (process *Process) syncConnections(meshes map[string]*proto.Mesh) {
 	process.mutex.Lock()
 	defer process.mutex.Unlock()
 	local := process.local.Info()
@@ -83,7 +89,68 @@ func (process *Process) syncConnections(meshes []*proto.Mesh) {
 
 //
 func (process *Process) Run() {
-	// 数据列表前缀
-	const prefixKey = "oceanus/"
-	// 数据
+
+	// 本地网格信息
+	info := process.local.Info()
+	process.log.Data(info).Info("start")
+	defer process.local.Destroy()
+
+	// 运行侦听器
+	process.acceptor.Run()
+	defer process.acceptor.Stop()
+	// 注册网格信息
+	key := string(prefix + info.ID)
+	if err := consulor.KV().Store(key, info); err != nil {
+		process.log.Errorf("register mesh error: %v", err)
+		return
+	}
+	defer func() {
+		if err := consulor.KV().Delete(key); err != nil {
+			process.log.Errorf("deregister mesh error: %v", err)
+		}
+	}()
+
+	// 监视网格列表
+	watcher, err := consulor.Watcher().Keyprefix(prefix, process.OnWatcher)
+	if err != nil {
+		process.log.Errorf("watch meshes error: %v", err)
+		return
+	}
+	go watcher.Run()
+	defer watcher.Stop()
+
+	// 监听进程退出信号
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt, os.Kill)
+
+	// TODO 添加退出信号
+	for {
+		select {
+		case signal := <-exit:
+			process.log.Infof("exit signal received: %v", signal)
+			return
+		case <-time.After(time.Second * 5):
+			p.notifyState()
+		}
+	}
 }
+
+// 网格列表监视回调
+func (process *Process) OnWatcher(_ uint64, pairs interface{}) {
+	meshes := map[string]*proto.Mesh{}
+	err := consul.ParsePairs(prefix, pairs.(api.KVPairs), &meshes, false)
+	if err != nil {
+		process.log.Errorf("parse mesh error: %v", err)
+		return
+	}
+	process.syncConnections(meshes)
+}
+
+// 退出
+func (process *Process) Destroy() {
+	for _, mesh := range process.remotes {
+		mesh.Push()
+	}
+}
+
+const prefix = "oceanus/"

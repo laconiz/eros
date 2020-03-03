@@ -67,47 +67,34 @@ func (mesh *Mesh) Expired() {
 }
 
 // 插入一个节点
-func (mesh *Mesh) Insert(info *proto.Node) *Node {
-	// 删除旧节点
-	mesh.Remove(info.ID)
-	// 新建一个节点
-	node := newNode(info, mesh)
-	// 写入节点列表
-	mesh.nodes[info.ID] = node
-	// 插入路由器
-	mesh.router.Insert(node)
-	// 更新节点类型统计列表
-	mesh.types[info.Type]++
-	// 返回数据
-	return node
+func (mesh *Mesh) Insert(list []*proto.Node) {
+	mesh.Remove(list)
+	for _, info := range list {
+		node := newNode(info, mesh)
+		mesh.nodes[info.ID] = node
+		mesh.router.Insert(node)
+		mesh.types[info.Type]++
+	}
 }
 
 // 销毁一个节点
-func (mesh *Mesh) Remove(id proto.NodeID) {
-	// 查询节点
-	if node, ok := mesh.nodes[id]; ok {
-		// 销毁节点
-		node.Destroy()
-		// 删除节点列表数据
-		delete(mesh.nodes, id)
-		// 从路由器删除节点
-		mesh.router.Remove(node)
-		// 更新节点类型统计列表
-		mesh.types[node.Info().Type]--
+func (mesh *Mesh) Remove(list []*proto.Node) {
+	for _, info := range list {
+		if node, ok := mesh.nodes[info.ID]; ok {
+			node.Destroy()
+			delete(mesh.nodes, info.ID)
+			mesh.router.Remove(node)
+			mesh.types[info.Type]--
+		}
 	}
 }
 
 // 销毁一个网格
 func (mesh *Mesh) Destroy() {
-	// 遍历节点
 	for _, node := range mesh.nodes {
-		// 销毁节点
 		node.Destroy()
-		// 从路由器中删除节点
 		mesh.router.Remove(node)
 	}
-	// 重置节点列表
 	mesh.nodes = map[proto.NodeID]*Node{}
-	// 重置节点类型统计列表
 	mesh.types = map[proto.NodeType]int64{}
 }
