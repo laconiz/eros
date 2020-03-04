@@ -23,31 +23,28 @@ var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"
 
 // 创建一个进程
 func New(addr string) (*Process, error) {
-	// 相同IP和端口具有相同的UUID
+
 	id := proto.MeshID(uuid.NewV3(namespace, addr).String())
-	// 路由器
+
 	router := oceanus.NewRouter()
-	// 本地网格权值
+
 	power, err := addrPower(addr)
 	if err != nil {
 		return nil, fmt.Errorf("get addr power error: %w", err)
 	}
-	// 本地网格
+
 	info := &proto.Mesh{ID: id, Addr: addr, Power: power}
-	// 进程信息
+
 	process := &Process{
 		local:      local.NewMesh(info, &proto.State{}, router),
 		remotes:    map[proto.MeshID]*remote.Mesh{},
 		acceptor:   nil,
 		connectors: map[proto.MeshID]network.Connector{},
 		router:     router,
-		log:        nil,
+		logger:     logisor.Field(logis.Module, "oceanus"),
 	}
-	// 网络侦听器
 	process.acceptor = process.NewAcceptor(addr)
-	// 日志接口
-	process.log = logisor.Field(logis.Module, "oceanus")
-	//
+
 	return process, nil
 }
 
@@ -57,7 +54,7 @@ type Process struct {
 	acceptor   network.Acceptor                   // 网络侦听器
 	connectors map[proto.MeshID]network.Connector // 网络连接器列表
 	router     *oceanus.Router                    // 路由器
-	log        logis.Logger                       // 日志接口
+	logger     logis.Logger                       // 日志接口
 	mutex      sync.RWMutex
 }
 
@@ -86,17 +83,24 @@ func (process *Process) syncConnections(meshes map[string]*proto.Mesh) {
 		}
 		// 创建网格连接
 		process.connectors[mesh.ID] = process.NewConnector(mesh.Addr)
-		process.log.Infof("connect to: %+v", mesh)
+		process.logger.Infof("connect to: %+v", mesh)
 	}
 
-	for id, connector := range process.connectors {
+	for id, mesh := range process.remotes {
 
 		if _, ok := meshes[string(id)]; ok {
 			continue
 		}
 
-		connector.Stop()
-		delete(process.connectors, id)
+		// 销毁远程网格
+		mesh.Destroy()
+		delete(process.remotes, id)
+
+		// 销毁远程网格连接器
+		if connector, ok := process.connectors[id]; ok {
+			connector.Stop()
+			delete(process.connectors, id)
+		}
 	}
 }
 
@@ -105,7 +109,7 @@ func (process *Process) Run() {
 
 	// 本地网格信息
 	info := process.local.Info()
-	process.log.Data(info).Info("start")
+	process.logger.Data(info).Info("start")
 	defer process.local.Destroy()
 
 	// 运行侦听器
@@ -114,19 +118,19 @@ func (process *Process) Run() {
 	// 注册网格信息
 	key := string(prefix + info.ID)
 	if err := consulor.KV().Store(key, info); err != nil {
-		process.log.Errorf("register mesh error: %v", err)
+		process.logger.Errorf("register mesh error: %v", err)
 		return
 	}
 	defer func() {
 		if err := consulor.KV().Delete(key); err != nil {
-			process.log.Errorf("deregister mesh error: %v", err)
+			process.logger.Errorf("deregister mesh error: %v", err)
 		}
 	}()
 
 	// 监视网格列表
 	watcher, err := consulor.Watcher().Keyprefix(prefix, process.OnWatcher)
 	if err != nil {
-		process.log.Errorf("watch meshes error: %v", err)
+		process.logger.Errorf("watch meshes error: %v", err)
 		return
 	}
 	go watcher.Run()
@@ -150,12 +154,12 @@ func (process *Process) Loop() {
 		case <-exit:
 
 			process.Destroy()
-			process.log.Info("exit")
+			process.logger.Info("exit")
 			return
 
 		case <-ticker.C:
 
-			process.log.Info("notify state")
+			process.logger.Info("notify state")
 			process.NotifyState()
 		}
 	}
@@ -168,7 +172,7 @@ func (process *Process) OnWatcher(_ uint64, pairs interface{}) {
 
 	err := consul.ParsePairs(prefix, pairs.(api.KVPairs), &meshes, false)
 	if err != nil {
-		process.log.Errorf("parse mesh error: %v", err)
+		process.logger.Errorf("parse mesh error: %v", err)
 		return
 	}
 
@@ -191,7 +195,7 @@ func (process *Process) NotifyState() {
 
 	for _, mesh := range process.remotes {
 		if err := mesh.Send(state); err != nil {
-			process.log.Data(mesh.Info()).Warnf("notify state error: %v", err)
+			// process.logger.Data(mesh.Info()).Warnf("notify state error: %v", err)
 		}
 	}
 }

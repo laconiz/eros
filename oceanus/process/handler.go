@@ -15,7 +15,7 @@ func (process *Process) OnConnected(event *network.Event) {
 	mesh := process.local
 	state, _ := mesh.State()
 	event.Ses.Send(&proto.MeshJoin{Mesh: mesh.Info(), State: state, Nodes: mesh.Nodes()})
-	process.log.Info("send local state to remote")
+	process.logger.Info("send local state to remote")
 }
 
 // 网络断开时更新网格状态
@@ -32,7 +32,7 @@ func (process *Process) OnMail(event *network.Event) {
 	process.mutex.RLock()
 	defer process.mutex.RUnlock()
 	if err := process.local.Push(event.Msg.(*proto.Mail)); err != nil {
-		process.log.Warnf("recv mail error: %v", err)
+		process.logger.Warnf("recv mail error: %v", err)
 	}
 }
 
@@ -45,7 +45,7 @@ func (process *Process) OnState(event *network.Event) {
 	}
 
 	state := event.Msg.(*proto.State)
-	process.log.Data(&proto.MeshJoin{Mesh: mesh.Info(), State: state}).Info("mesh state update")
+	process.logger.Data(&proto.MeshJoin{Mesh: mesh.Info(), State: state}).Info("mesh state update")
 
 	process.mutex.Lock()
 	defer process.mutex.Unlock()
@@ -70,7 +70,7 @@ func (process *Process) OnMeshJoin(event *network.Event) {
 	mesh.UpdateSession(event.Ses)
 	mesh.Insert(msg.Nodes)
 
-	process.log.Data(msg.Mesh).Info("remote mesh connected")
+	process.logger.Data(msg.Mesh).Info("remote mesh connected")
 }
 
 // 移除网格
