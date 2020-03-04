@@ -1,5 +1,12 @@
 package mathe
 
+func MaxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func MaxInt8(a, b int8) int8 {
 	if a > b {
 		return a

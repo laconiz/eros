@@ -11,7 +11,7 @@ import (
 
 func main() {
 
-	opt := socket.ConnOption{
+	opt := socket.ConnectorOption{
 		Addr:      example.Addr,
 		Reconnect: true,
 	}

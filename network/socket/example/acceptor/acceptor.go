@@ -21,9 +21,9 @@ func main() {
 		flag++
 	})
 
-	opt := socket.AccOption{
+	opt := socket.AcceptorOption{
 		Addr:    example.Addr,
-		Session: socket.SesOption{Invoker: invoker},
+		Session: socket.SessionOption{Invoker: invoker},
 	}
 	acc := socket.NewAcceptor(opt)
 	acc.Run()

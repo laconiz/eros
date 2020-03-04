@@ -9,12 +9,20 @@ import (
 	"os"
 )
 
+func Level(level logis.Level) logis.Logger {
+	return logger.Level(level)
+}
+
 func Field(key string, value interface{}) logis.Logger {
 	return logger.Field(key, value)
 }
 
 func Fields(fields context.Fields) logis.Logger {
 	return logger.Fields(fields)
+}
+
+func Data(value interface{}) logis.Logger {
+	return logger.Data(value)
 }
 
 func Debug(args ...interface{}) {
@@ -73,7 +81,7 @@ func init() {
 	option := &Option{}
 	if err := consulor.KV().Load(path, option); err != nil {
 		logger = hook.NewHook(formatter.Text()).
-			Add(logis.INFO, os.Stdout).
+			Add(logis.DEBUG, os.Stdout).
 			Entry()
 		return
 	}

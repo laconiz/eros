@@ -22,28 +22,29 @@ type Mesh struct {
 }
 
 type State struct {
-	Version uint32 `json:"v"`
+	Version uint32 `json:"ver"`
 }
 
 type MeshJoin struct {
-	Mesh  *Mesh   `json:"m"`
-	State *State  `json:"s"`
-	Nodes []*Node `json:"n"`
+	Mesh  *Mesh   `json:"mesh"`
+	State *State  `json:"state"`
+	Nodes []*Node `json:"n, omitempty"`
 }
 
 type MeshQuit struct {
-	Mesh *Mesh `json:"m"`
+	Mesh *Mesh `json:"mesh"`
 }
 
 type NodeJoin struct {
-	Nodes []*Node `json:"n"`
+	Nodes []*Node `json:"nodes"`
 }
 
 type NodeQuit struct {
-	Nodes []*Node `json:"n"`
+	Nodes []*Node `json:"nodes"`
 }
 
 func init() {
+	message.Register(State{}, message.JsonCodec())
 	message.Register(MeshJoin{}, message.JsonCodec())
 	message.Register(MeshQuit{}, message.JsonCodec())
 	message.Register(NodeJoin{}, message.JsonCodec())

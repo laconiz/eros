@@ -14,10 +14,12 @@ type SocketInvoker struct {
 }
 
 func (invoker *SocketInvoker) Register(msg interface{}, handler network.HandlerFunc) {
+
 	meta, ok := message.MetaByMessage(msg)
 	if !ok {
 		return
 	}
+
 	invoker.handlers[meta.ID()] = handler
 }
 

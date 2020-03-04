@@ -8,11 +8,14 @@ import (
 
 // 网络连接时发送网格数据
 func (process *Process) OnConnected(event *network.Event) {
+
 	process.mutex.RLock()
 	defer process.mutex.RUnlock()
+
 	mesh := process.local
 	state, _ := mesh.State()
 	event.Ses.Send(&proto.MeshJoin{Mesh: mesh.Info(), State: state, Nodes: mesh.Nodes()})
+	process.log.Info("send local state to remote")
 }
 
 // 网络断开时更新网格状态
@@ -33,19 +36,41 @@ func (process *Process) OnMail(event *network.Event) {
 	}
 }
 
-// 插入网格
-func (process *Process) OnMeshJoin(event *network.Event) {
-	msg := event.Msg.(*proto.MeshJoin)
-	event.Ses.Set(sessionKey, msg.Mesh)
+// 网格状态
+func (process *Process) OnState(event *network.Event) {
+
+	mesh, ok := process.boundMesh(event)
+	if !ok {
+		return
+	}
+
+	state := event.Msg.(*proto.State)
+	process.log.Data(&proto.MeshJoin{Mesh: mesh.Info(), State: state}).Info("mesh state update")
+
 	process.mutex.Lock()
 	defer process.mutex.Unlock()
+	mesh.UpdateState(state)
+}
+
+// 插入网格
+func (process *Process) OnMeshJoin(event *network.Event) {
+
+	msg := event.Msg.(*proto.MeshJoin)
+	event.Ses.Set(sessionKey, msg.Mesh)
+
+	process.mutex.Lock()
+	defer process.mutex.Unlock()
+
 	mesh, ok := process.remotes[msg.Mesh.ID]
 	if !ok {
 		mesh = remote.NewMesh(msg.Mesh, msg.State, process.router)
 		process.remotes[msg.Mesh.ID] = mesh
 	}
+
 	mesh.UpdateSession(event.Ses)
 	mesh.Insert(msg.Nodes)
+
+	process.log.Data(msg.Mesh).Info("remote mesh connected")
 }
 
 // 移除网格

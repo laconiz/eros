@@ -38,11 +38,15 @@ func (mesh *Mesh) State() (*proto.State, bool) {
 }
 
 // 向网格发送数据
-func (mesh *Mesh) Push(message *proto.Mail) error {
-	if mesh.session != nil {
-		return mesh.session.Send(message)
+func (mesh *Mesh) Push(mail *proto.Mail) error {
+	return mesh.Send(mail)
+}
+
+func (mesh *Mesh) Send(msg interface{}) error {
+	if mesh.session == nil {
+		return errors.New("invalid session")
 	}
-	return errors.New("invalid session")
+	return mesh.session.Send(msg)
 }
 
 // 更新网格状态

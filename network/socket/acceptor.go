@@ -4,7 +4,6 @@ package socket
 
 import (
 	"github.com/laconiz/eros/logis"
-	"github.com/laconiz/eros/logis/context"
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/session"
@@ -14,47 +13,41 @@ import (
 )
 
 // 生成一个socket服务器
-func NewAcceptor(opt AccOption) *Acceptor {
-	opt.parse()
-	return &Acceptor{
-		option:   opt,
-		sessions: session.NewManager(),
-		log: logisor.Fields(context.Fields{
-			logis.Module:      module,
-			network.FieldName: opt.Name,
-		}),
-	}
+func NewAcceptor(option AcceptorOption) *Acceptor {
+	option.parse()
+	logger := logisor.Level(option.Level).Field(logis.Module, module).Field(network.FieldName, option.Name)
+	return &Acceptor{option: option, sessions: session.NewManager(), logger: logger}
 }
 
 // socket服务器
 type Acceptor struct {
-	option   AccOption        // 配置
+	option   AcceptorOption   // 配置
 	listener net.Listener     // 监听器
 	sessions *session.Manager // session管理器
-	log      logis.Logger     // 日志
+	logger   logis.Logger     // 日志
 	mutex    sync.RWMutex
 }
 
-const errClosed = "use of closed network connection"
-
 // 启动服务器
-func (acc *Acceptor) Run() {
+func (acceptor *Acceptor) Run() {
 
-	acc.mutex.Lock()
-	defer acc.mutex.Unlock()
-	if acc.listener != nil {
+	acceptor.mutex.Lock()
+	defer acceptor.mutex.Unlock()
+
+	if acceptor.listener != nil {
 		return
 	}
 
-	// 创建侦听器
-	listener, err := net.Listen("tcp", acc.option.Addr)
+	option := acceptor.option
+
+	listener, err := net.Listen("tcp", option.Addr)
 	if err != nil {
-		acc.log.Errorf("listen error: %v", err)
+		acceptor.logger.Err(err).Error("listen error")
 		return
 	}
-	acc.listener = listener
+	acceptor.listener = listener
 
-	acc.log.Infof("listen at: %s", acc.option.Addr)
+	acceptor.logger.Data(option.Addr).Info("start")
 
 	go func() {
 
@@ -62,74 +55,78 @@ func (acc *Acceptor) Run() {
 
 			conn, err := listener.Accept()
 			if err != nil {
-				if !strings.Contains(err.Error(), errClosed) {
-					acc.log.Errorf("accept error: %v", err)
+				if !strings.Contains(err.Error(), "use of closed network connection") {
+					acceptor.logger.Err(err).Error("accept error")
 				}
 				break
 			}
 
-			ses := newSession(conn, &acc.option.Session, acc.log)
-			acc.sessions.Insert(ses)
-			go ses.run(acc.onSessionClose)
+			ses := newSession(conn, &acceptor.option.Session, acceptor.logger)
+			acceptor.sessions.Insert(ses)
+			go ses.run(acceptor.onSessionClose)
 		}
 
-		acc.mutex.Lock()
-		defer acc.mutex.Unlock()
-		if acc.listener == listener {
-			acc.listener = nil
+		acceptor.mutex.Lock()
+		defer acceptor.mutex.Unlock()
+
+		if acceptor.listener == listener {
+			acceptor.listener = nil
 		}
-		acc.log.Info("stopped")
+
+		acceptor.logger.Info("stopped")
 	}()
 }
 
 // 停止服务器
-func (acc *Acceptor) Stop() {
+func (acceptor *Acceptor) Stop() {
 
-	acc.mutex.Lock()
-	defer acc.mutex.Unlock()
+	acceptor.mutex.Lock()
+	defer acceptor.mutex.Unlock()
 
-	acc.sessions.Range(func(ses session.Session) bool {
+	acceptor.sessions.Range(func(ses session.Session) bool {
 		ses.Close()
 		return true
 	})
 
-	if acc.listener != nil {
-		acc.listener.Close()
+	if acceptor.listener != nil {
+		acceptor.listener.Close()
 	}
 }
 
 // 服务器状态
-func (acc *Acceptor) State() network.State {
-	acc.mutex.Lock()
-	defer acc.mutex.Unlock()
-	if acc.listener != nil {
+func (acceptor *Acceptor) State() network.State {
+
+	acceptor.mutex.Lock()
+	defer acceptor.mutex.Unlock()
+
+	if acceptor.listener != nil {
 		return network.Running
 	}
 	return network.Stopped
 }
 
 // 服务器连接数量
-func (acc *Acceptor) Count() int64 {
-	return acc.sessions.Count()
+func (acceptor *Acceptor) Count() int64 {
+	return acceptor.sessions.Count()
 }
 
 // 广播消息
-func (acc *Acceptor) Broadcast(msg interface{}) {
-	acc.sessions.Range(func(ses session.Session) bool {
+func (acceptor *Acceptor) Broadcast(msg interface{}) {
+	acceptor.sessions.Range(func(ses session.Session) bool {
 		ses.Send(msg)
 		return true
 	})
 }
 
 // 广播字节流
-func (acc *Acceptor) BroadcastRaw(stream []byte) {
-	acc.sessions.Range(func(ses session.Session) bool {
+func (acceptor *Acceptor) BroadcastRaw(stream []byte) {
+	acceptor.sessions.Range(func(ses session.Session) bool {
 		ses.SendRaw(stream)
 		return true
 	})
 }
 
 // session关闭回调
-func (acc *Acceptor) onSessionClose(ses *Session) {
-	acc.sessions.Remove(ses)
+func (acceptor *Acceptor) onSessionClose(ses *Session) {
+	acceptor.sessions.Remove(ses)
 }

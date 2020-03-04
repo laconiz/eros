@@ -1,14 +1,28 @@
 package logis
 
-import "github.com/laconiz/eros/logis/context"
+import (
+	"github.com/laconiz/eros/logis/context"
+	"time"
+)
 
 const (
 	Module = "module"
 )
 
+type Log struct {
+	Level   Level            // 等级
+	Error   string           // 错误信息
+	Message string           // 文本内容
+	Time    time.Time        // 时间
+	Value   interface{}      // 即时数据
+	Context *context.Context // 上下文
+}
+
 type Logger interface {
+	Level(level Level) Logger
 	Field(key string, value interface{}) Logger
 	Fields(fields context.Fields) Logger
+	Err(err error) Logger
 	Data(value interface{}) Logger
 	Debug(args ...interface{})
 	Debugf(format string, args ...interface{})
@@ -20,63 +34,4 @@ type Logger interface {
 	Errorf(format string, args ...interface{})
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
-}
-
-func NewEmpty() Logger {
-	return &Empty{}
-}
-
-type Empty struct {
-}
-
-func (empty *Empty) Field(string, interface{}) Logger {
-	return empty
-}
-
-func (empty *Empty) Fields(context.Fields) Logger {
-	return empty
-}
-
-func (empty *Empty) Data(interface{}) Logger {
-	return empty
-}
-
-func (empty *Empty) Debug(...interface{}) {
-
-}
-
-func (empty *Empty) Debugf(string, ...interface{}) {
-
-}
-
-func (empty *Empty) Info(...interface{}) {
-
-}
-
-func (empty *Empty) Infof(string, ...interface{}) {
-
-}
-
-func (empty *Empty) Warn(...interface{}) {
-
-}
-
-func (empty *Empty) Warnf(string, ...interface{}) {
-
-}
-
-func (empty *Empty) Error(...interface{}) {
-
-}
-
-func (empty *Empty) Errorf(string, ...interface{}) {
-
-}
-
-func (empty *Empty) Fatal(...interface{}) {
-
-}
-
-func (empty *Empty) Fatalf(string, ...interface{}) {
-
 }

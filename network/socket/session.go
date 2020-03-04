@@ -14,154 +14,153 @@ import (
 )
 
 // 生成一个session
-func newSession(conn net.Conn, opt *SesOption, log logis.Logger) *Session {
-	id := session.ID(session.Increment())
+func newSession(conn net.Conn, option *SessionOption, logger logis.Logger) *Session {
+	id := session.Increment()
 	return &Session{
 		id:      id,
 		conn:    conn,
-		opt:     opt,
-		queue:   queue.New(opt.QueueLen),
-		log:     log.Field(network.FieldSession, id),
-		cipher:  opt.Cipher.New(),
-		encoder: opt.Encoder.New(),
-		packer:  opt.Packer.New(),
+		option:  option,
+		queue:   queue.New(option.QueueLen),
+		logger:  logger.Field(network.FieldSession, id),
+		cipher:  option.Cipher.New(),
+		encoder: option.Encoder.New(),
+		packer:  option.Packer.New(),
 	}
 }
 
 type Session struct {
 	id      session.ID      // ID
 	conn    net.Conn        // 连接
-	opt     *SesOption      // 配置信息
+	option  *SessionOption  // 配置信息
 	queue   *queue.Queue    // 发送队列
 	data    sync.Map        // 附加数据
-	log     logis.Logger    // 日志接口
+	logger  logis.Logger    // 日志接口
 	encoder message.Encoder // 编码器
 	cipher  cipher.Cipher   // 加密器
 	packer  packer.Packer   // 包装器
 }
 
-func (ses *Session) ID() session.ID {
-	return ses.id
+func (session *Session) ID() session.ID {
+	return session.id
 }
 
-func (ses *Session) Addr() string {
-	return ses.conn.RemoteAddr().String()
+func (session *Session) Addr() string {
+	return session.conn.RemoteAddr().String()
 }
 
-func (ses *Session) Send(msg interface{}) error {
-	message, err := ses.encoder.Encode(msg)
+func (session *Session) Send(msg interface{}) error {
+
+	message, err := session.encoder.Encode(msg)
 	if err != nil {
 		return err
 	}
-	return ses.queue.Add(message.Stream)
+
+	return session.queue.Add(message.Stream)
 }
 
-func (ses *Session) SendRaw(raw []byte) error {
-	return ses.queue.Add(raw)
+func (session *Session) SendRaw(raw []byte) error {
+	return session.queue.Add(raw)
 }
 
-func (ses *Session) Close() {
-	ses.queue.Close()
+func (session *Session) Close() {
+	session.queue.Close()
 }
 
-func (ses *Session) Set(key, value interface{}) {
-	ses.data.Store(key, value)
+func (session *Session) Set(key, value interface{}) {
+	session.data.Store(key, value)
 }
 
-func (ses *Session) Get(key interface{}) (interface{}, bool) {
-	return ses.data.Load(key)
+func (session *Session) Get(key interface{}) (interface{}, bool) {
+	return session.data.Load(key)
 }
 
-func (ses *Session) read() {
+func (session *Session) read() {
 
-	opt := ses.opt
+	option := session.option
 
 	for {
 
-		ses.conn.SetReadDeadline(time.Now().Add(opt.Timeout))
+		session.conn.SetReadDeadline(time.Now().Add(option.Timeout))
 
-		stream, err := ses.packer.Decode(ses.conn)
+		stream, err := session.packer.Decode(session.conn)
 		if err != nil {
-			ses.log.Infof("read stream error: %v", err)
+			session.logger.Err(err).Info("read stream error")
 			return
 		}
 
-		raw, err := ses.cipher.Decode(stream)
+		raw, err := session.cipher.Decode(stream)
 		if err != nil {
-			ses.log.Warnf("cipher.decode error: %v", err)
+			session.logger.Err(err).Warn("cipher decode error")
 			break
 		}
 
-		message, err := ses.encoder.Decode(raw)
+		message, err := session.encoder.Decode(raw)
 		if err != nil {
-			ses.log.Warnf("encoder.decode error: %v", err)
+			session.logger.Err(err).Warn("encoder decode error")
 			break
 		}
 
-		ses.log.Debugf("read: %v", string(raw))
-		ses.invoke(&network.Event{Meta: message.Meta, Msg: message.Msg, Ses: ses})
+		session.logger.Data(string(raw)).Debug("read message")
+		session.invoke(&network.Event{Meta: message.Meta, Msg: message.Msg, Ses: session})
 	}
-
-	ses.log.Info("read loop break")
 }
 
-func (ses *Session) write() {
+func (session *Session) write() {
 
-	opt := ses.opt
+	option := session.option
 
 	for {
 
-		ses.conn.SetWriteDeadline(time.Now().Add(opt.Timeout))
+		session.conn.SetWriteDeadline(time.Now().Add(option.Timeout))
 
-		raws, ok := ses.queue.Pick()
+		raws, exit := session.queue.Pick()
 		for _, raw := range raws {
 
-			stream, err := ses.cipher.Encode(raw.([]byte))
+			stream, err := session.cipher.Encode(raw.([]byte))
 			if err != nil {
-				ses.log.Warnf("cipher.encode error: %v", err)
+				session.logger.Err(err).Warn("cipher encode error")
 				goto BREAK
 			}
 
-			if err := ses.packer.Encode(ses.conn, stream); err != nil {
-				ses.log.Warnf("write stream error: %v", err)
+			if err := session.packer.Encode(session.conn, stream); err != nil {
+				session.logger.Err(err).Warn("write stream error")
 				goto BREAK
 			}
 
-			ses.log.Debugf("write: %v", string(raw.([]byte)))
+			session.logger.Data(string(raw.([]byte))).Debug("write message")
 		}
 
-		if ok {
+		if exit {
 			goto BREAK
 		}
 	}
 
 BREAK:
-	ses.log.Info("write loop break")
 }
 
-func (ses *Session) run(closeFunc func(*Session)) {
+func (session *Session) run(closeFunc func(*Session)) {
 
-	ses.log.Info("connected")
+	session.logger.Info("connected")
 
 	go func() {
-		ses.write()
-		ses.conn.Close()
+		session.write()
+		session.conn.Close()
 	}()
 
-	ses.invoke(network.NewConnectedEvent(ses))
-	ses.read()
-	ses.queue.Close()
+	session.invoke(network.NewConnectedEvent(session))
+	session.read()
+	session.queue.Close()
 
-	ses.log.Info("disconnected")
-	closeFunc(ses)
-	ses.invoke(network.NewDisconnectedEvent(ses))
+	session.logger.Info("disconnected")
+	closeFunc(session)
+	session.invoke(network.NewDisconnectedEvent(session))
 }
 
-func (ses *Session) invoke(event *network.Event) {
+func (session *Session) invoke(event *network.Event) {
 	defer func() {
 		if err := recover(); err != nil {
-			ses.log.Errorf("invoke panic: %v", err)
+			session.logger.Data(err).Error("invoke panic")
 		}
 	}()
-	ses.opt.Invoker.Invoke(event)
+	session.option.Invoker.Invoke(event)
 }

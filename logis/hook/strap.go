@@ -2,7 +2,6 @@ package hook
 
 import (
 	"github.com/laconiz/eros/logis"
-	"github.com/laconiz/eros/logis/context"
 )
 
 // 创建一个钩子列表
@@ -27,7 +26,7 @@ func (strap *Strap) Add(hook *Hook) *Strap {
 
 // 生成日志入口
 func (strap *Strap) Entry() logis.Logger {
-	return &logis.Entry{Context: context.New(nil), Strap: strap}
+	return logis.NewEntry(strap)
 }
 
 // 是否有日志钩子需要调用

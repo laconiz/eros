@@ -3,6 +3,7 @@
 package socket
 
 import (
+	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/network/cipher"
 	"github.com/laconiz/eros/network/encoder"
 	"github.com/laconiz/eros/network/socket/packer"
@@ -14,7 +15,7 @@ import (
 const module = "socket"
 
 // session配置
-type SesOption struct {
+type SessionOption struct {
 	Timeout  time.Duration   // 超时
 	QueueLen int             // 写缓冲区长度
 	Invoker  network.Invoker // 回调接口
@@ -23,7 +24,7 @@ type SesOption struct {
 	Packer   packer.Maker    // 包装器
 }
 
-func (opt *SesOption) parse() {
+func (opt *SessionOption) parse() {
 	if opt.Timeout <= 0 {
 		opt.Timeout = time.Second * 15
 	}
@@ -45,34 +46,39 @@ func (opt *SesOption) parse() {
 }
 
 // acceptor配置
-type AccOption struct {
-	Name    string
-	Addr    string
-	Session SesOption
+type AcceptorOption struct {
+	Name    string        // 名称
+	Addr    string        // 连接地址
+	Session SessionOption // session配置
+	Level   logis.Level   // 日志等级
 }
 
-func (opt *AccOption) parse() {
-	if opt.Name == "" {
-		opt.Name = "acceptor"
+func (option *AcceptorOption) parse() {
+	if option.Name == "" {
+		option.Name = "acceptor"
 	}
-	opt.Session.parse()
+	if !option.Level.Valid() {
+		option.Level = logis.INFO
+	}
+	option.Session.parse()
 }
 
 // connector配置
-type ConnOption struct {
+type ConnectorOption struct {
 	Name      string          // 名称
 	Addr      string          // 连接地址
 	Reconnect bool            // 是否重连
 	Delays    []time.Duration // 重连延迟
-	Session   SesOption       // session配置
+	Session   SessionOption   // session配置
+	Level     logis.Level     // 日志等级
 }
 
-func (opt *ConnOption) parse() {
-	if opt.Name == "" {
-		opt.Name = "connector"
+func (option *ConnectorOption) parse() {
+	if option.Name == "" {
+		option.Name = "connector"
 	}
-	if len(opt.Delays) == 0 {
-		opt.Delays = []time.Duration{
+	if len(option.Delays) == 0 {
+		option.Delays = []time.Duration{
 			time.Millisecond * 10,
 			time.Millisecond * 200,
 			time.Millisecond * 800,
@@ -84,5 +90,8 @@ func (opt *ConnOption) parse() {
 			time.Millisecond * 15000,
 		}
 	}
-	opt.Session.parse()
+	if !option.Level.Valid() {
+		option.Level = logis.INFO
+	}
+	option.Session.parse()
 }
