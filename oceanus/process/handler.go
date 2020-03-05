@@ -14,15 +14,28 @@ func (process *Process) OnConnected(event *network.Event) {
 
 	mesh := process.local
 	state, _ := mesh.State()
-	event.Ses.Send(&proto.MeshJoin{Mesh: mesh.Info(), State: state, Nodes: mesh.Nodes()})
-	process.logger.Info("send local state to remote")
+	event.Ses.Send(&proto.MeshJoin{
+		Mesh:  mesh.Info(),
+		State: state,
+		Nodes: mesh.Nodes(),
+	})
+
+	process.logger.Info("join to remote")
 }
 
 // 网络断开时更新网格状态
 func (process *Process) OnDisconnected(event *network.Event) {
-	if mesh, ok := process.boundMesh(event); ok {
-		process.mutex.Lock()
-		defer process.mutex.Unlock()
+
+	value, ok := event.Ses.Get(sessionKey)
+	if !ok {
+		return
+	}
+	info := value.(*proto.Mesh)
+
+	process.mutex.Lock()
+	defer process.mutex.Unlock()
+
+	if mesh, ok := process.remotes[info.ID]; ok {
 		mesh.UpdateSession(nil)
 	}
 }
@@ -39,17 +52,22 @@ func (process *Process) OnMail(event *network.Event) {
 // 网格状态
 func (process *Process) OnState(event *network.Event) {
 
-	mesh, ok := process.boundMesh(event)
+	value, ok := event.Ses.Get(sessionKey)
 	if !ok {
 		return
 	}
+	info := value.(*proto.Mesh)
 
-	state := event.Msg.(*proto.State)
-	process.logger.Data(&proto.MeshJoin{Mesh: mesh.Info(), State: state}).Info("mesh state update")
+	msg := event.Msg.(*proto.State)
 
 	process.mutex.Lock()
 	defer process.mutex.Unlock()
-	mesh.UpdateState(state)
+
+	if mesh, ok := process.remotes[info.ID]; ok {
+		mesh.UpdateState(msg)
+		data := &proto.MeshJoin{Mesh: info, State: msg}
+		process.logger.Data(data).Info("remote mesh update")
+	}
 }
 
 // 插入网格
@@ -70,44 +88,87 @@ func (process *Process) OnMeshJoin(event *network.Event) {
 	mesh.UpdateSession(event.Ses)
 	mesh.Insert(msg.Nodes)
 
-	process.logger.Data(msg.Mesh).Info("remote mesh connected")
+	process.logger.Data(msg).Info("remote mesh join")
 }
 
 // 移除网格
 func (process *Process) OnMeshQuit(event *network.Event) {
-	if mesh, ok := process.boundMesh(event); ok {
-		process.mutex.Lock()
-		defer process.mutex.Unlock()
+
+	value, ok := event.Ses.Get(sessionKey)
+	if !ok {
+		return
+	}
+	info := value.(*proto.Mesh)
+
+	process.mutex.Lock()
+	defer process.mutex.Unlock()
+
+	if mesh, ok := process.remotes[info.ID]; ok {
 		mesh.Destroy()
-		delete(process.remotes, mesh.Info().ID)
+		delete(process.remotes, info.ID)
+		process.logger.Data(info).Info("remote mesh quit")
+	}
+
+	if connector, ok := process.connectors[info.ID]; ok {
+		connector.Stop()
+		delete(process.connectors, info.ID)
+		process.logger.Data(info.ID).Info("connector stopped")
 	}
 }
 
 // 插入节点
-func (process *Process) OnNodeJoin(event *network.Event) {
-	if mesh, ok := process.boundMesh(event); ok {
-		process.mutex.Lock()
-		defer process.mutex.Unlock()
-		mesh.Insert(event.Msg.(*proto.NodeJoin).Nodes)
+func (process *Process) onNodeJoin(event *network.Event) {
+
+	value, ok := event.Ses.Get(sessionKey)
+	if !ok {
+		return
+	}
+	info := value.(*proto.Mesh)
+
+	msg := event.Msg.(*proto.NodeJoin)
+
+	process.mutex.Lock()
+	defer process.mutex.Unlock()
+
+	if mesh, ok := process.remotes[info.ID]; ok {
+		mesh.Insert(msg.Nodes)
+		process.logger.Data(msg).Info("remote node join")
 	}
 }
 
 // 移除节点
-func (process *Process) OnNodeQuit(event *network.Event) {
-	if mesh, ok := process.boundMesh(event); ok {
-		process.mutex.Lock()
-		defer process.mutex.Unlock()
-		mesh.Remove(event.Msg.(*proto.NodeQuit).Nodes)
+func (process *Process) onNodeQuit(event *network.Event) {
+
+	value, ok := event.Ses.Get(sessionKey)
+	if !ok {
+		return
+	}
+	info := value.(*proto.Mesh)
+
+	msg := event.Msg.(*proto.NodeQuit)
+
+	process.mutex.Lock()
+	defer process.mutex.Unlock()
+
+	if mesh, ok := process.remotes[info.ID]; ok {
+		mesh.Remove(msg.Nodes)
+		process.logger.Data(msg).Info("remote node quit")
 	}
 }
 
-// 获取连接绑定
-func (process *Process) boundMesh(event *network.Event) (*remote.Mesh, bool) {
-	if value, ok := event.Ses.Get(sessionKey); ok {
-		mesh, ok := process.remotes[value.(*proto.Mesh).ID]
-		return mesh, ok
+// 广播状态
+func (process *Process) broadcastState() {
+
+	process.mutex.RLock()
+	defer process.mutex.RUnlock()
+
+	state, _ := process.local.State()
+
+	for _, mesh := range process.remotes {
+		if err := mesh.Send(state); err != nil {
+			process.logger.Err(err).Data(mesh.Info()).Warn("send state failed")
+		}
 	}
-	return nil, false
 }
 
 const sessionKey = "mesh"

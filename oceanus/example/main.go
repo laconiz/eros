@@ -10,7 +10,6 @@ import (
 func main() {
 
 	addr := command.ParseStringArg("addr", "")
-	log.Info(addr)
 
 	proc, err := process.New(addr)
 	if err != nil {

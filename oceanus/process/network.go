@@ -1,6 +1,7 @@
 package process
 
 import (
+	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/cipher"
 	"github.com/laconiz/eros/network/encoder"
@@ -19,10 +20,11 @@ func (process *Process) NewInvoker() invoker.Invoker {
 	invoker.Register(network.Disconnected{}, process.OnDisconnected)
 	invoker.Register(proto.Mail{}, process.OnMail)
 	invoker.Register(proto.State{}, process.OnState)
+
 	invoker.Register(proto.MeshJoin{}, process.OnMeshJoin)
 	invoker.Register(proto.MeshQuit{}, process.OnMeshQuit)
-	invoker.Register(proto.NodeJoin{}, process.OnNodeJoin)
-	invoker.Register(proto.NodeQuit{}, process.OnNodeQuit)
+	invoker.Register(proto.NodeJoin{}, process.onNodeJoin)
+	invoker.Register(proto.NodeQuit{}, process.onNodeQuit)
 
 	return invoker
 }
@@ -44,6 +46,7 @@ func (process *Process) NewAcceptor(addr string) network.Acceptor {
 		Name:    "oceanus.acceptor",
 		Addr:    addr,
 		Session: process.NewSessionOption(),
+		Level:   logis.WARN,
 	}
 
 	return socket.NewAcceptor(option)
@@ -57,9 +60,9 @@ func (process *Process) NewConnector(addr string) network.Connector {
 		Reconnect: true,
 		Delays:    []time.Duration{time.Millisecond},
 		Session:   process.NewSessionOption(),
+		Level:     logis.WARN,
 	}
 
 	connector := socket.NewConnector(option)
-	go connector.Run()
 	return connector
 }

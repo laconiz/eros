@@ -28,7 +28,7 @@ type State struct {
 type MeshJoin struct {
 	Mesh  *Mesh   `json:"mesh"`
 	State *State  `json:"state"`
-	Nodes []*Node `json:"n, omitempty"`
+	Nodes []*Node `json:"nodes, omitempty"`
 }
 
 type MeshQuit struct {
