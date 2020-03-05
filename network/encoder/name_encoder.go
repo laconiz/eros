@@ -32,7 +32,7 @@ func (e *nameEncoder) Encode(msg interface{}) (*message.Message, error) {
 
 func (e *nameEncoder) Decode(stream []byte) (*message.Message, error) {
 
-	bp := bytes.SplitN(stream, []byte{NameEncoderSep()}, 1)
+	bp := bytes.SplitN(stream, []byte{NameEncoderSep()}, 2)
 	if len(bp) != 2 {
 		return nil, errors.New("invalid stream")
 	}
