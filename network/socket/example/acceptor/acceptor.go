@@ -5,6 +5,7 @@ import (
 	"github.com/laconiz/eros/logis/formatter"
 	"github.com/laconiz/eros/logis/hook"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/encoder"
 	"github.com/laconiz/eros/network/socket"
 	"github.com/laconiz/eros/network/socket/example"
 	"os"
@@ -22,8 +23,11 @@ func main() {
 	})
 
 	opt := socket.AcceptorOption{
-		Addr:    example.Addr,
-		Session: socket.SessionOption{Invoker: invoker},
+		Addr: example.Addr,
+		Session: socket.SessionOption{
+			Invoker: invoker,
+			Encoder: encoder.NewNameMaker(),
+		},
 	}
 	acc := socket.NewAcceptor(opt)
 	acc.Run()
