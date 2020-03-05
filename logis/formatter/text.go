@@ -64,7 +64,7 @@ func (f *TextFormatter) Format(log *logis.Log) ([]byte, error) {
 	// value
 	var value string
 	if log.Value != nil {
-		if raw, err := json.Marshal(log.Value); err != nil {
+		if raw, err := json.Marshal(log.Value); err == nil {
 			value = string(raw)
 		} else {
 			value = fmt.Sprintf("%#v", log.Value)
