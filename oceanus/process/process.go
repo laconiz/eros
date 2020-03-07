@@ -1,6 +1,7 @@
 package process
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/laconiz/eros/database/consul"
 	"github.com/laconiz/eros/logis"
@@ -22,7 +23,7 @@ var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"
 // 创建一个进程
 func New(addr string) (*Process, error) {
 
-	id := proto.MeshID(uuid.NewV3(namespace, addr).String())
+	id := proto.MeshID(hex.EncodeToString(uuid.NewV3(namespace, addr).Bytes()))
 
 	router := oceanus.NewRouter()
 
