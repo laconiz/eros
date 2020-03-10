@@ -3,11 +3,11 @@ package remote
 import (
 	"errors"
 	"github.com/laconiz/eros/network/session"
-	"github.com/laconiz/eros/oceanus"
 	"github.com/laconiz/eros/oceanus/proto"
+	"github.com/laconiz/eros/oceanus/router"
 )
 
-func NewMesh(info *proto.Mesh, state *proto.State, router *oceanus.Router) *Mesh {
+func NewMesh(info *proto.Mesh, state *proto.State, router *router.Router) *Mesh {
 	return &Mesh{
 		info:    info,
 		state:   state,
@@ -23,7 +23,7 @@ type Mesh struct {
 	state   *proto.State             // 网格状态
 	nodes   map[proto.NodeID]*Node   // 节点列表
 	types   map[proto.NodeType]int64 // 网格节点类型统计
-	router  *oceanus.Router          // 路由器
+	router  *router.Router           // 路由器
 	session session.Session          // 网络连接
 }
 

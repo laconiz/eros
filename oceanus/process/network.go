@@ -66,3 +66,12 @@ func (process *Process) NewConnector(addr string) network.Connector {
 	connector := socket.NewConnector(option)
 	return connector
 }
+
+func (process *Process) broadcast(msg interface{}) {
+
+	for _, mesh := range process.remotes {
+		if err := mesh.Send(msg); err != nil {
+			process.logger.Data(msg).Warn("send message failed")
+		}
+	}
+}

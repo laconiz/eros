@@ -1,4 +1,4 @@
-package oceanus
+package router
 
 import (
 	"github.com/laconiz/eros/oceanus/proto"
@@ -14,20 +14,25 @@ type Router struct {
 }
 
 func (router *Router) Insert(node Node) {
+
 	router.nodes[node.Info().ID] = node
+
 	balancer, ok := router.balancers[node.Info().Type]
 	if !ok {
 		balancer = newBalancer()
 		router.balancers[node.Info().Type] = balancer
 	}
+
 	balancer.Insert(node)
 }
 
-func (router *Router) Remove(node Node) {
-	if _, ok := router.nodes[node.Info().ID]; ok {
-		delete(router.nodes, node.Info().ID)
-		if balancer, ok := router.balancers[node.Info().Type]; ok {
-			balancer.Remove(node)
+func (router *Router) Remove(list []*proto.Node) {
+
+	for _, info := range list {
+
+		if node, ok := router.nodes[info.ID]; ok {
+			delete(router.nodes, info.ID)
+			router.balancers[info.Type].Remove(node)
 		}
 	}
 }

@@ -1,4 +1,4 @@
-package oceanus
+package router
 
 import (
 	"github.com/laconiz/eros/oceanus/proto"
@@ -40,11 +40,12 @@ func (b *Balancer) rebalance() {
 }
 
 // 发送消息
-func (b *Balancer) Send(message *proto.Mail) {
+func (b *Balancer) Balance(mail *proto.Mail) error {
 
 	if b.expired {
 		b.rebalance()
 	}
 	b.expired = false
 
+	return nil
 }

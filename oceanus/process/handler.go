@@ -163,12 +163,7 @@ func (process *Process) broadcastState() {
 	defer process.mutex.RUnlock()
 
 	state, _ := process.local.State()
-
-	for _, mesh := range process.remotes {
-		if err := mesh.Send(state); err != nil {
-			process.logger.Err(err).Data(mesh.Info()).Warn("send state failed")
-		}
-	}
+	process.broadcast(state)
 }
 
 const sessionKey = "mesh"

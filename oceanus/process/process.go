@@ -7,10 +7,10 @@ import (
 	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
-	"github.com/laconiz/eros/oceanus"
 	"github.com/laconiz/eros/oceanus/local"
 	"github.com/laconiz/eros/oceanus/proto"
 	"github.com/laconiz/eros/oceanus/remote"
+	router2 "github.com/laconiz/eros/oceanus/router"
 	uuid "github.com/satori/go.uuid"
 	"os"
 	"os/signal"
@@ -25,7 +25,7 @@ func New(addr string) (*Process, error) {
 
 	id := proto.MeshID(hex.EncodeToString(uuid.NewV3(namespace, addr).Bytes()))
 
-	router := oceanus.NewRouter()
+	router := router2.NewRouter()
 
 	power, err := addrPower(addr)
 	if err != nil {
@@ -48,7 +48,7 @@ type Process struct {
 	remotes    map[proto.MeshID]*remote.Mesh      // 远程网格列表
 	acceptor   network.Acceptor                   // 网络侦听器
 	connectors map[proto.MeshID]network.Connector // 网络连接器列表
-	router     *oceanus.Router                    // 路由器
+	router     *router2.Router                    // 路由器
 	logger     logis.Logger                       // 日志接口
 	mutex      sync.RWMutex
 }
