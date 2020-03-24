@@ -81,7 +81,7 @@ func TestKey(t *testing.T) {
 	exists, err = k.Get(key, &Int)
 	assert(err == nil, !exists)
 
-	// Incr
+	// Increment
 	assert(k.Delete(key) == nil)
 	Int64, err := k.Incr(key, 40)
 	assert(err == nil, Int64 == 40)

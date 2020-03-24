@@ -2,12 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/laconiz/eros/logis"
-	"github.com/laconiz/eros/logis/formatter"
-	"github.com/laconiz/eros/logis/hook"
-	"github.com/laconiz/eros/network/invoker"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/laconiz/eros/network/httpis"
@@ -18,11 +13,9 @@ func main() {
 
 	var state string
 
-	log := hook.NewHook(formatter.NewTextFormatter()).AddWriter(logis.DEBUG, os.Stdout).Entry()
-
-	opt := httpis.AcceptorOption{
+	option := &httpis.AcceptorOption{
 		Addr: example.Addr,
-		Nodes: []*invoker.Node{
+		Nodes: []*httpis.Node{
 			{
 				Path:   example.Path,
 				Method: http.MethodGet,
@@ -49,7 +42,7 @@ func main() {
 		},
 	}
 
-	acceptor, err := httpis.NewAcceptor(opt, log)
+	acceptor, err := httpis.NewAcceptor(option)
 	if err != nil {
 		panic(err)
 	}

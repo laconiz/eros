@@ -1,4 +1,4 @@
-package invoker
+package httpis
 
 import (
 	"fmt"
@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type Node struct {
 	Path    string       // 路径
 	Method  string       // 方法
@@ -23,29 +25,35 @@ type Node struct {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-func NewGinInvoker(log logis.Logger) *GinInvoker {
-	return &GinInvoker{squirt: ioc.New(), log: log}
+func NewInvoker(logger logis.Logger) *Invoker {
+	return &Invoker{squirt: ioc.New(), logger: logger}
 }
 
-type GinInvoker struct {
-	squirt *ioc.Squirt
-	log    logis.Logger
+// ---------------------------------------------------------------------------------------------------------------------
+
+type Invoker struct {
+	squirt *ioc.Squirt  // 依赖注入器
+	logger logis.Logger // 日志接口
 }
 
-func (i *GinInvoker) Params(params ...interface{}) *GinInvoker {
-	i.squirt.Params(params...)
-	return i
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (invoker *Invoker) Params(params ...interface{}) *Invoker {
+	invoker.squirt.Params(params...)
+	return invoker
 }
 
-func (i *GinInvoker) Creators(creators ...interface{}) *GinInvoker {
-	i.squirt.Creators(creators...)
-	return i
+func (invoker *Invoker) Creators(creators ...interface{}) *Invoker {
+	invoker.squirt.Creators(creators...)
+	return invoker
 }
 
-func (i *GinInvoker) Register(router gin.IRouter, nodes []*Node) error {
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (invoker *Invoker) Register(router gin.IRouter, nodes []*Node) error {
 
 	for _, node := range nodes {
-		if err := i.RegisterEx(router, node); err != nil {
+		if err := invoker.RegisterEx(router, node); err != nil {
 			return err
 		}
 	}
@@ -53,11 +61,11 @@ func (i *GinInvoker) Register(router gin.IRouter, nodes []*Node) error {
 	return nil
 }
 
-func (i *GinInvoker) RegisterEx(router gin.IRouter, node *Node) error {
+func (invoker *Invoker) RegisterEx(router gin.IRouter, node *Node) error {
 
-	squirt := i.squirt.Copy()
+	squirt := invoker.squirt.Copy()
 
-	args, err := squirt.UnknownArgs(node.Handler, i.dynamicParams()...)
+	args, err := squirt.UnknownArgs(node.Handler, invoker.dynamicParams()...)
 	if err != nil {
 		return err
 	}
@@ -81,27 +89,26 @@ func (i *GinInvoker) RegisterEx(router gin.IRouter, node *Node) error {
 		})
 	}
 
-	invoker, err := squirt.Handle(node.Handler, i.dynamicParams()...)
+	handler, err := squirt.Handle(node.Handler, invoker.dynamicParams()...)
 	if err != nil {
 		return err
 	}
 
-	i.log.Infof("%s: %s", node.Method, node.Path)
-	router.Handle(node.Method, node.Path, i.Handle(node, invoker))
+	invoker.logger.Infof("%s: %s", node.Method, node.Path)
+	router.Handle(node.Method, node.Path, invoker.Handle(node, handler))
 	return nil
 }
 
-// 将依赖注入接口转换为gin接口
-func (i *GinInvoker) Handle(node *Node, invoker ioc.Invoker) gin.HandlerFunc {
+func (invoker *Invoker) Handle(node *Node, handler ioc.Invoker) gin.HandlerFunc {
 
-	log := i.log.Fields(context.Fields{fieldPath: node.Path, fieldMethod: node.Method})
+	log := invoker.logger.Fields(context.Fields{fieldPath: node.Path, fieldMethod: node.Method})
 
 	return func(ctx *gin.Context) {
 
 		log = log.Field(network.FieldSession, session.Increment())
 
 		now := time.Now()
-		args, values, err := invoker(ctx)
+		args, values, err := handler(ctx)
 		log = log.Field(fieldDuration, time.Since(now).Milliseconds())
 
 		if len(args) > 0 {
@@ -130,14 +137,16 @@ func (i *GinInvoker) Handle(node *Node, invoker ioc.Invoker) gin.HandlerFunc {
 	}
 }
 
-func (i *GinInvoker) dynamicParams() []interface{} {
+func (invoker *Invoker) dynamicParams() []interface{} {
 	return []interface{}{&gin.Context{}}
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 const (
 	fieldPath      = "path"
 	fieldMethod    = "method"
-	fieldDuration  = "duration"
+	fieldDuration  = "milliseconds"
 	fieldRequests  = "requests"
 	fieldResponses = "responses"
 )

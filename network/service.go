@@ -11,6 +11,7 @@ const (
 type Service interface {
 	Run()
 	Stop()
+	Addr() string
 	State() State
 }
 

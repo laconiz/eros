@@ -11,6 +11,7 @@ func NewRouter() *Router {
 type Router struct {
 	nodes     map[proto.NodeID]Node
 	balancers map[proto.NodeType]*Balancer
+	packer    Packer
 }
 
 func (router *Router) Insert(node Node) {
@@ -41,4 +42,36 @@ func (router *Router) Expired(typo proto.NodeType) {
 	if balancer, ok := router.balancers[typo]; ok {
 		balancer.Expired()
 	}
+}
+
+func (router *Router) RouteByID(id proto.NodeID, mail *proto.Mail) {
+
+	node, ok := router.nodes[id]
+	if !ok {
+		return
+	}
+
+	mail = mail.Copy()
+	mail.Receivers = []*proto.Node{node.Info()}
+	node.Push(mail)
+}
+
+func (router *Router) RouteByKey(typo proto.NodeType, key proto.NodeKey, mail *proto.Mail) {
+
+	balancer, ok := router.balancers[typo]
+	if !ok {
+		return
+	}
+
+	balancer.Key(key, mail)
+}
+
+func (router *Router) RandByType(typo proto.NodeType, msg interface{}) {
+
+	balancer, ok := router.balancers[typo]
+	if !ok {
+		return
+	}
+
+	balancer.Random()
 }

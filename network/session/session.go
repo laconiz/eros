@@ -14,14 +14,14 @@ type Session interface {
 	Send(msg interface{}) error
 	SendRaw(raw []byte) error
 	Close()
-	Set(key interface{}, value interface{})
-	Get(key interface{}) (value interface{}, ok bool)
+	Load(key interface{}) (value interface{}, ok bool)
+	Store(key interface{}, value interface{})
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 type EmptySession struct {
-	values sync.Map
+	sync.Map
 }
 
 func (ses *EmptySession) ID() ID {
@@ -42,12 +42,4 @@ func (ses *EmptySession) SendRaw(raw []byte) error {
 
 func (ses *EmptySession) Close() {
 
-}
-
-func (ses *EmptySession) Set(key interface{}, value interface{}) {
-	ses.values.Store(key, value)
-}
-
-func (ses *EmptySession) Get(key interface{}) (interface{}, bool) {
-	return ses.values.Load(key)
 }

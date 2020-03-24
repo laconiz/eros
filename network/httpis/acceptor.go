@@ -2,43 +2,66 @@ package httpis
 
 import (
 	"context"
-	context2 "github.com/laconiz/eros/logis/context"
-	"github.com/laconiz/eros/network/invoker"
+	"github.com/gin-gonic/gin"
+	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/logis/logisor"
+	"github.com/laconiz/eros/network"
 	"net/http"
 	"sync"
-
-	"github.com/gin-gonic/gin"
-
-	"github.com/laconiz/eros/logis"
-	"github.com/laconiz/eros/network"
+	"time"
 )
 
-const module = "httpis"
+// ---------------------------------------------------------------------------------------------------------------------
 
-func NewAcceptor(opt AcceptorOption, log logis.Logger) (*Acceptor, error) {
+func NewAcceptor(option *AcceptorOption) (*Acceptor, error) {
 
-	opt.parse()
+	option.parse()
+
+	logger := logisor.Level(option.Level).
+		Field(logis.Module, module).
+		Field(network.FieldName, option.Name)
 
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
-	log = log.Fields(context2.Fields{logis.Module: module, network.FieldName: opt.Name})
+	invoker := NewInvoker(logger).
+		Params(option.Params...).
+		Creators(option.Creators...)
 
-	invoker := invoker.NewGinInvoker(log).Params(opt.Params...).Creators(opt.Creators...)
-	if err := invoker.Register(engine, opt.Nodes); err != nil {
+	if err := invoker.Register(engine, option.Nodes); err != nil {
 		return nil, err
 	}
 
-	server := &http.Server{Addr: opt.Addr, Handler: engine}
-	return &Acceptor{state: network.Stopped, server: server, log: log}, nil
+	return &Acceptor{
+		state: network.Stopped,
+		listener: &http.Server{
+			Addr:    option.Addr,
+			Handler: engine,
+		},
+		logger: logger,
+	}, nil
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type Acceptor struct {
-	state  network.State
-	server *http.Server
-	log    logis.Logger
-	mutex  sync.RWMutex
+	state    network.State // 状态
+	listener *http.Server  // 侦听器
+	logger   logis.Logger  // 日志接口
+	mutex    sync.RWMutex
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (acceptor *Acceptor) State() network.State {
+
+	acceptor.mutex.RLock()
+	defer acceptor.mutex.RUnlock()
+
+	return acceptor.state
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (acceptor *Acceptor) Run() {
 
@@ -50,29 +73,25 @@ func (acceptor *Acceptor) Run() {
 	}
 	acceptor.state = network.Running
 
-	server := &http.Server{
-		Addr:    acceptor.server.Addr,
-		Handler: acceptor.server.Handler,
+	acceptor.listener = &http.Server{
+		Addr:    acceptor.listener.Addr,
+		Handler: acceptor.listener.Handler,
 	}
-	acceptor.server = server
+
+	acceptor.logger.Data(acceptor.listener.Addr).Info("start")
 
 	go func() {
 
-		acceptor.log.Infof("listening at %s", server.Addr)
-
-		err := server.ListenAndServe()
+		err := acceptor.listener.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			acceptor.log.Errorf("listen error: %v", err)
-		} else {
-			acceptor.log.Info("stopped")
+			acceptor.logger.Err(err).Error("listen error")
 		}
 
 		acceptor.mutex.Lock()
 		defer acceptor.mutex.Unlock()
 
-		if server == acceptor.server {
-			acceptor.state = network.Stopped
-		}
+		acceptor.state = network.Stopped
+		acceptor.logger.Info("stopped")
 	}()
 }
 
@@ -84,18 +103,17 @@ func (acceptor *Acceptor) Stop() {
 	if acceptor.state != network.Running {
 		return
 	}
+	acceptor.state = network.Closing
 
-	err := acceptor.server.Shutdown(context.Background())
-	if err != nil {
-		acceptor.log.Errorf("shutdown error: %v", err)
+	acceptor.logger.Info("shutting down")
+
+	context, _ := context.WithTimeout(context.Background(), time.Second*2)
+	if err := acceptor.listener.Shutdown(context); err != nil {
+		acceptor.logger.Err(err).Error("shutdown error")
 	}
 }
 
-func (acceptor *Acceptor) State() network.State {
-	acceptor.mutex.RLock()
-	defer acceptor.mutex.RUnlock()
-	return acceptor.state
-}
+// ---------------------------------------------------------------------------------------------------------------------
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)

@@ -8,12 +8,14 @@ import (
 	"github.com/laconiz/eros/network/message"
 )
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type nameEncoder struct {
 }
 
 func (e *nameEncoder) Encode(msg interface{}) (*message.Message, error) {
 
-	meta, ok := message.MetaByMessage(msg)
+	meta, ok := message.MetaByMsg(msg)
 	if !ok {
 		return nil, errors.New("meta cannot be found")
 	}
@@ -27,7 +29,7 @@ func (e *nameEncoder) Encode(msg interface{}) (*message.Message, error) {
 	buf.WriteByte(NameEncoderSep())
 	buf.Write(raw)
 
-	return &message.Message{Meta: meta, Msg: msg, Raw: raw, Stream: buf.Bytes(), Encoder: e}, nil
+	return &message.Message{Meta: meta, Msg: msg, Raw: raw, Stream: buf.Bytes()}, nil
 }
 
 func (e *nameEncoder) Decode(stream []byte) (*message.Message, error) {
@@ -47,7 +49,7 @@ func (e *nameEncoder) Decode(stream []byte) (*message.Message, error) {
 		return nil, err
 	}
 
-	return &message.Message{Meta: meta, Msg: msg, Raw: bp[1], Stream: stream, Encoder: e}, nil
+	return &message.Message{Meta: meta, Msg: msg, Raw: bp[1], Stream: stream}, nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -63,9 +65,9 @@ func NewNameMaker() Maker {
 }
 
 type nameEncoderMaker struct {
-	encoder message.Encoder
+	encoder Encoder
 }
 
-func (m *nameEncoderMaker) New() message.Encoder {
+func (m *nameEncoderMaker) New() Encoder {
 	return m.encoder
 }

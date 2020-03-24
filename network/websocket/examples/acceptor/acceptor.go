@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/laconiz/eros/log"
-	"github.com/laconiz/eros/network/invoker"
 	"github.com/laconiz/eros/network/websocket"
 	"github.com/laconiz/eros/network/websocket/examples"
 )
@@ -14,19 +12,12 @@ func onREQ(req *examples.REQ) *examples.ACK {
 
 func main() {
 
-	logger := log.Std("main")
+	// handlers := []interface{}{onREQ}
 
-	handlers := []interface{}{onREQ}
-
-	inv, err := invoker.NewNetworkInvoker(logger, handlers)
-	if err != nil {
-		panic(err)
-	}
-
-	conf := websocket.AcceptorConfig{
+	conf := websocket.AcceptorOption{
 		Addr: ":12314",
 	}
-	conf.Session.Invoker = inv
+	// conf.Session.Invoker = inv
 
 	acc := websocket.NewAcceptor(conf)
 	acc.Start()

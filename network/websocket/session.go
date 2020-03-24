@@ -1,196 +1,174 @@
+// session
+
 package websocket
 
 import (
-	"fmt"
+	"github.com/gorilla/websocket"
+	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/cipher"
+	"github.com/laconiz/eros/network/message"
+	"github.com/laconiz/eros/network/queue"
+	"github.com/laconiz/eros/network/session"
 	"sync"
 	"time"
-
-	"github.com/gorilla/websocket"
-
-	"github.com/laconiz/eros/log"
-	"github.com/laconiz/eros/network"
-	queue2 "github.com/laconiz/eros/network/queue"
 )
 
-type SessionMgr interface {
-	Add(network.Session)
-	Del(network.Session)
+// ---------------------------------------------------------------------------------------------------------------------
+
+func newSession(conn *websocket.Conn, addr string, option *SessionOption, logger logis.Logger) *Session {
+	id := session.Increment()
+	return &Session{
+		id:      id,
+		addr:    addr,
+		conn:    conn,
+		option:  option,
+		queue:   queue.New(option.QueueLen),
+		logger:  logger.Field(network.FieldSession, id),
+		encoder: option.Encoder.New(),
+		cipher:  option.Cipher.New(),
+	}
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type Session struct {
-	id     network.SessionID // session ID
-	addr   string            // 连接地址
-	conn   *websocket.Conn   // websocket连接
-	queue  *queue2.Queue     // 写入队列
-	config *SessionConfig    // 配置
-	log    *log.Logger       // 日志
-	data   sync.Map          // 携带信息
+	id       session.ID      // session ID
+	addr     string          // 连接地址
+	conn     *websocket.Conn // websocket连接
+	option   *SessionOption  // 配置
+	queue    *queue.Queue    // 写入队列
+	logger   logis.Logger    // 日志
+	encoder  message.Encoder // 编码器
+	cipher   cipher.Cipher   // 加密器
+	sync.Map                 // 附加信息
 }
 
-// session ID
-func (ses *Session) ID() network.SessionID {
-	return ses.id
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *Session) ID() session.ID {
+	return session.id
 }
 
-// 连接地址
-func (ses *Session) Addr() string {
-	return ses.addr
+func (session *Session) Addr() string {
+	return session.addr
 }
 
-// 发送消息
-func (ses *Session) Send(msg interface{}) error {
+func (session *Session) Close() {
+	session.queue.Close()
+}
 
-	event, err := ses.config.Encoder.Encode(msg)
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (session *Session) Send(msg interface{}) error {
+
+	message, err := session.encoder.Encode(msg)
 	if err != nil {
-		ses.log.Errorf("encode message[%+v] error: %v", msg, err)
+		session.logger.Data(msg).Err(err).Error("encoder encode error")
 		return err
 	}
 
-	return ses.queue.Add(event)
+	return session.SendRaw(message.Stream)
 }
 
-// 发送数据流
-func (ses *Session) SendStream(stream []byte) error {
-	return ses.queue.Add(&network.Event{Stream: stream})
+func (session *Session) SendRaw(raw []byte) error {
+	return session.queue.Add(raw)
 }
 
-// 关闭连接
-func (ses *Session) Close() {
-	ses.queue.Close()
-}
+// ---------------------------------------------------------------------------------------------------------------------
 
-// 设置附加数据
-func (ses *Session) Set(key interface{}, value interface{}) {
-	ses.data.Store(key, value)
-}
+func (session *Session) read() {
 
-// 获取附加数据
-func (ses *Session) Get(key interface{}) interface{} {
-	if value, ok := ses.data.Load(key); ok {
-		return value
-	}
-	return nil
-}
+	logger := session.logger
+	option := session.option
 
-// 读取流程
-func (ses *Session) read() {
-
-	conf := ses.config
-
-	// 设置消息最大字节数
-	ses.conn.SetReadLimit(ses.config.ReadLimit)
+	session.conn.SetReadLimit(option.ReadLimit)
 
 	for {
 
-		// 设置读取超时
-		ses.conn.SetReadDeadline(time.Now().Add(conf.ReadTimeout))
+		session.conn.SetReadDeadline(time.Now().Add(option.Timeout))
 
-		// 读取消息流
-		_, stream, err := ses.conn.ReadMessage()
+		_, stream, err := session.conn.ReadMessage()
 		if err != nil {
-			ses.log.Infof("read break by %v", err)
-			return
+			logger.Err(err).Info("read stream error")
+			break
 		}
 
-		// 反序列化消息
-		event, err := conf.Encoder.Decode(stream)
+		raw, err := session.cipher.Decode(stream)
 		if err != nil {
-			ses.log.Warnf("decode error: %v", err)
-			return
+			logger.Data(raw).Err(err).Warn("cipher decode error")
+			break
 		}
 
-		// 消息回调
-		// ses.log.Infof("read: %s", conf.Encoder.String(event))
-		event.Session = ses
-		ses.invoke(event)
+		message, err := session.encoder.Decode(raw)
+		if err != nil {
+			logger.Data(raw).Err(err).Warn("encoder decode error")
+			break
+		}
+
+		logger.Data(string(raw)).Debug("read message")
+		session.invoke(&network.Event{Meta: message.Meta, Msg: message.Msg, Ses: session})
 	}
 }
 
-// 写入流程
-func (ses *Session) write() {
+func (session *Session) write() {
 
-	conf := ses.config
+	logger := session.logger
+	option := session.option
 
 	for {
 
-		// 设置写入超时
-		ses.conn.SetWriteDeadline(time.Now().Add(conf.WriteTimeout))
+		session.conn.SetWriteDeadline(time.Now().Add(option.Timeout))
 
-		// 读取队列
-		events, exited := ses.queue.Pick()
+		raws, closed := session.queue.Pick()
 
-		for _, e := range events {
+		for _, raw := range raws {
 
-			event := e.(*network.Event)
-
-			// ses.log.Infof("write: %s", conf.Encoder.String(event))
-
-			err := ses.conn.WriteMessage(websocket.BinaryMessage, event.Stream)
+			stream, err := session.cipher.Encode(raw.([]byte))
 			if err != nil {
-				ses.log.Errorf("write error: %v", err)
+				logger.Data(raw).Err(err).Warn("cipher encode error")
+				return
+			}
+
+			if err := session.conn.WriteMessage(websocket.BinaryMessage, stream); err != nil {
+				logger.Err(err).Warn("write stream error")
 				return
 			}
 		}
 
-		// 关闭连接
-		if exited {
+		if closed {
 			return
 		}
 	}
 }
 
-func (ses *Session) run(closeFunc func(*Session)) {
+func (session *Session) run(callback func(*Session)) {
 
-	ses.log.Infof("connected")
+	session.logger.Info("connected")
 
-	// 连接成功回调
-	ses.invoke(&network.Event{
-		Meta:    network.MetaConnected,
-		Msg:     &network.Connected{},
-		Session: ses,
-	})
-
-	// 启动写线程
 	go func() {
-		ses.write()
-		// 关闭读线程
-		ses.conn.Close()
+		session.write()
+		session.conn.Close()
 	}()
 
-	// 启动读线程
-	ses.read()
-	// 关闭写线程
-	ses.queue.Close()
+	session.invoke(network.NewConnectedEvent(session))
+	session.read()
+	session.queue.Close()
 
-	ses.log.Infof("disconnected")
-
-	closeFunc(ses)
-
-	// 连接断开回调
-	ses.invoke(&network.Event{
-		Meta:    network.MetaDisconnected,
-		Msg:     &network.Connected{},
-		Session: ses,
-	})
+	session.logger.Info("disconnected")
+	callback(session)
+	session.invoke(network.NewDisconnectedEvent(session))
 }
 
-func newSession(
-	id network.SessionID,
-	name string,
-	addr string,
-	conn *websocket.Conn,
-	config *SessionConfig,
-) *Session {
+// ---------------------------------------------------------------------------------------------------------------------
 
-	logName := fmt.Sprintf("%s.ses.%d", name, id)
+func (session *Session) invoke(event *network.Event) {
 
-	return &Session{
-		id:     id,
-		addr:   addr,
-		conn:   conn,
-		queue:  queue2.New(config.WriteQueueLen),
-		config: config,
-		log:    log.Std(logName),
-		data:   sync.Map{},
-	}
+	defer func() {
+		if err := recover(); err != nil {
+			session.logger.Data(err).Error("invoke panic")
+		}
+	}()
+
+	session.option.Invoker.Invoke(event)
 }

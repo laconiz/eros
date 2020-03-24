@@ -3,7 +3,6 @@ module github.com/laconiz/eros
 go 1.13
 
 require (
-	github.com/ahmetb/go-linq v3.0.0+incompatible // indirect
 	github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/gin-gonic/gin v1.5.0
@@ -15,7 +14,6 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/olivere/elastic v6.2.26+incompatible
+	github.com/robfig/cron v1.2.0
 	github.com/satori/go.uuid v1.2.0
-	github.com/sirupsen/logrus v1.2.0
-	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 )

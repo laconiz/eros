@@ -32,7 +32,7 @@ var ComplexPointer = &Struct{A: 200, B: "complex pointer", C: []float32{4.4, 5.5
 
 func init() {
 
-	conf := Config{
+	conf := Option{
 		Network:   "atlas",
 		Address:   "127.0.0.1:6379",
 		Password:  "redis",

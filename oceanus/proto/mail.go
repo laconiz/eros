@@ -1,23 +1,43 @@
 package proto
 
-import "github.com/laconiz/eros/network/message"
+import (
+	"encoding/hex"
+	"github.com/laconiz/eros/network/message"
+	uuid "github.com/satori/go.uuid"
+)
 
 type MailID string
 
-// 路由消息
 type Mail struct {
-	// 消息ID
-	ID MailID
-	// 消息类型
-	Type NodeType
-	// 消息调用节点
-	// 展示完整的消息调用过程
-	// RPC消息回调
-	Senders []Node
-	// 消息接收节点
-	Receivers []Node
-	// 消息体
-	Body []byte
+	ID        MailID
+	Type      NodeType
+	Senders   []Node
+	Receivers []*Node
+	Body      []byte
+}
+
+func (mail *Mail) New() *Mail {
+	return &Mail{
+		ID:        newMailID(),
+		Type:      mail.Type,
+		Senders:   mail.Senders,
+		Receivers: mail.Receivers,
+		Body:      mail.Body,
+	}
+}
+
+func (mail *Mail) Copy() *Mail {
+	return &Mail{
+		ID:        mail.ID,
+		Type:      mail.Type,
+		Senders:   mail.Senders,
+		Receivers: mail.Receivers,
+		Body:      mail.Body,
+	}
+}
+
+func newMailID() MailID {
+	return MailID(hex.EncodeToString(uuid.NewV1().Bytes()))
 }
 
 func init() {

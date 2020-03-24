@@ -10,7 +10,7 @@ func TestZOrder(t *testing.T) {
 
 	assert(r.Key().Delete(key) == nil)
 
-	// Incr
+	// Increment
 	assert(z.Incr(1, 2) == nil)
 	assert(z.Incr(3, 4) == nil)
 

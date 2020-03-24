@@ -4,7 +4,11 @@ import (
 	"reflect"
 )
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type ID uint32
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type Meta interface {
 	ID() ID
@@ -14,11 +18,13 @@ type Meta interface {
 	Decode(raw []byte) (msg interface{}, err error)
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type meta struct {
-	id    ID
-	name  string
-	typo  reflect.Type
-	codec Codec
+	id    ID           // 消息ID
+	name  string       // 消息名
+	typo  reflect.Type // 消息类型
+	codec Codec        // 消息序列化规则
 }
 
 func (m *meta) ID() ID {

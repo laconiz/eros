@@ -53,16 +53,16 @@ func (h *Hash) GetAll(value interface{}) error {
 }
 
 // 为表中指定域的值加上增量
-func (h *Hash) Incr(field interface{}, increment int64) (int64, error) {
+func (h *Hash) Increment(field interface{}, increment int64) (int64, error) {
 	return h.conn.int64(HINCRBY, h.key, field, increment)
 }
 
 // 为表中指定域加上增量
 // 若增量为负数且与原值计算后为负数则不会进行计算
-func (h *Hash) UnsignedIncr(field interface{}, increment int64) (int64, bool, error) {
+func (h *Hash) Consume(field interface{}, value int64) (int64, bool, error) {
 
 	// 增量为负数
-	if increment < 0 {
+	if value < 0 {
 
 		result := &struct {
 			Value   int64
@@ -70,24 +70,24 @@ func (h *Hash) UnsignedIncr(field interface{}, increment int64) (int64, bool, er
 		}{}
 
 		// 执行脚本并反序列化数据
-		replies, err := h.conn.Script().Do(unsignedIncr, h.key, field, increment)
+		replies, err := h.conn.Script().Do(scriptConsume, h.key, field, value)
 		err = decoder.Decode(result, replies, err)
 		return result.Value, result.Success, err
 	}
 
 	// 直接进行计算
-	value, err := h.Incr(field, increment)
+	num, err := h.Increment(field, value)
 	success := err == nil
-	return value, success, err
+	return num, success, err
 }
 
 // 无符号增量计算脚本
-var unsignedIncr = &Script{
-	Name:   "HASH UNSIGNED INCR",
-	Script: redis.NewScript(1, luaUnsignedIncr),
+var scriptConsume = &Script{
+	Name:   "HASH CONSUME",
+	Script: redis.NewScript(1, luaConsume),
 }
 
-var luaUnsignedIncr = `
+var luaConsume = `
 
 	local new = redis.call('HINCRBY', KEYS[1], ARGV[1], ARGV[2])
 	if new >= 0 then

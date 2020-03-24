@@ -2,7 +2,6 @@ package cipher
 
 import (
 	"bytes"
-	"log"
 	"testing"
 )
 
@@ -12,14 +11,12 @@ func TestIndexCipher(t *testing.T) {
 
 	origin := []byte("hello world")
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10000; i++ {
 
 		stream, err := cipher.Encode(origin)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		log.Printf("index: %d, stream: %v", i, stream)
 
 		raw, err := cipher.Decode(stream)
 		if err != nil {
@@ -29,7 +26,5 @@ func TestIndexCipher(t *testing.T) {
 		if !bytes.Equal(origin, raw) {
 			t.Fatalf("%v != %v", origin, raw)
 		}
-
-		// log.Printf("index: %d, stream: %v", i, stream)
 	}
 }

@@ -2,7 +2,6 @@ package local
 
 import (
 	"github.com/laconiz/eros/network/queue"
-	"github.com/laconiz/eros/oceanus"
 	"github.com/laconiz/eros/oceanus/proto"
 )
 
@@ -12,7 +11,7 @@ func newNode(info *proto.Node, mesh *Mesh, invoker interface{}) (*Node, error) {
 
 type Node struct {
 	info  *proto.Node  // 节点信息
-	mesh  oceanus.Mesh // 所属网格
+	mesh  Mesh         // 所属网格
 	queue *queue.Queue // 消息队列
 }
 
@@ -22,7 +21,7 @@ func (node *Node) Info() *proto.Node {
 }
 
 // 节点所属网格
-func (node *Node) Mesh() oceanus.Mesh {
+func (node *Node) Mesh() Mesh {
 	return node.mesh
 }
 

@@ -9,6 +9,10 @@ import (
 	"os"
 )
 
+func Module(module string) logis.Logger {
+	return logger.Field(logis.Module, module)
+}
+
 func Level(level logis.Level) logis.Logger {
 	return logger.Level(level)
 }

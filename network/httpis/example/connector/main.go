@@ -1,12 +1,9 @@
 package main
 
 import (
-	"github.com/laconiz/eros/logis"
-	"github.com/laconiz/eros/logis/formatter"
-	"github.com/laconiz/eros/logis/hook"
+	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network/httpis"
 	"github.com/laconiz/eros/network/httpis/example"
-	"os"
 )
 
 func main() {
@@ -17,24 +14,24 @@ func main() {
 	if err := connector.Put(&example.ReportREQ{State: "PUT"}, &state); err != nil {
 		panic(err)
 	}
-	log.Info(state)
+	logger.Info(state)
 
 	ack := example.StateACK{}
 	if err := connector.Get(nil, &ack); err != nil {
 		panic(err)
 	}
-	log.Info(ack)
+	logger.Info(ack)
 
 	var success bool
 	if err := connector.Post(&example.ReportREQ{State: "normal"}, &success); err != nil {
 		panic(err)
 	}
-	log.Info(success)
+	logger.Info(success)
 
 	if err := connector.Get(nil, &ack); err != nil {
 		panic(err)
 	}
-	log.Info(ack)
+	logger.Info(ack)
 }
 
-var log = hook.NewHook(formatter.NewTextFormatter()).AddWriter(logis.DEBUG, os.Stdout).Entry()
+var logger = logisor.Module("main")

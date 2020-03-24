@@ -1,20 +1,35 @@
 package httpis
 
-import "github.com/laconiz/eros/network/invoker"
+import (
+	"github.com/laconiz/eros/logis"
+)
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+const module = "httpis"
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type AcceptorOption struct {
-	Name     string
-	Addr     string
-	Nodes    []*invoker.Node
-	Params   []interface{}
-	Creators []interface{}
+	Name     string        // 名称
+	Addr     string        // 侦听地址
+	Nodes    []*Node       // 接口
+	Params   []interface{} // 注入参数
+	Creators []interface{} // 参数生成器
+	Level    logis.Level   // 日志等级
 }
 
-func (o *AcceptorOption) parse() {
-	if o.Name == "" {
-		o.Name = "acceptor"
+func (option *AcceptorOption) parse() {
+
+	if option.Name == "" {
+		option.Name = "acceptor"
 	}
-	if o.Addr == "" {
-		o.Addr = "0.0.0.0:8080"
+
+	if option.Addr == "" {
+		option.Addr = "0.0.0.0:8080"
+	}
+
+	if !option.Level.Valid() {
+		option.Level = logis.INFO
 	}
 }

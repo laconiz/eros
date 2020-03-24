@@ -5,10 +5,6 @@ import (
 	"reflect"
 )
 
-func (e *Elastic) Search() error {
-
-}
-
 type Query interface {
 	Query() elastic.Query
 }

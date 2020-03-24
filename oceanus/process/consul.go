@@ -5,11 +5,14 @@ import (
 	"github.com/laconiz/eros/database/consul"
 	"github.com/laconiz/eros/database/consul/consulor"
 	"github.com/laconiz/eros/oceanus/proto"
+	"hash/fnv"
 )
+
+const prefix = "oceanus/meshes/"
 
 func (process *Process) register() error {
 	info := process.local.Info()
-	return consulor.KV().Store(string(prefix+info.ID), info)
+	return consulor.KV().Store(string(prefix+info.ID), info.Addr)
 }
 
 func (process *Process) deregister() error {
@@ -23,7 +26,7 @@ func (process *Process) watcher() *consul.Plan {
 
 		pairs := value.(api.KVPairs)
 
-		meshes := map[string]*proto.Mesh{}
+		meshes := map[proto.MeshID]string{}
 		err := consul.ParsePairs(prefix, pairs, &meshes, false)
 		if err != nil {
 			process.logger.Err(err).Error("parse meshes error")
@@ -38,49 +41,54 @@ func (process *Process) watcher() *consul.Plan {
 }
 
 // 同步连接信息
-func (process *Process) syncConnections(meshes map[string]*proto.Mesh) {
+func (process *Process) syncConnections(meshes map[proto.MeshID]string) {
 
 	process.mutex.Lock()
 	defer process.mutex.Unlock()
 
 	local := process.local.Info()
 
-	for id, mesh := range meshes {
+	hash := fnv.New32()
+	hash.Write([]byte(local.Addr))
+	lp := hash.Sum32()
 
-		if proto.MeshID(id) == local.ID {
+	for id, addr := range meshes {
+
+		if id == local.ID {
 			continue
 		}
 
-		if _, ok := process.connectors[mesh.ID]; ok {
+		if _, ok := process.connectors[id]; ok {
 			continue
 		}
 
-		if (local.Power > mesh.Power && (local.Power-mesh.Power)%2 == 0) ||
-			(local.Power < mesh.Power && (mesh.Power-local.Power)%2 != 0) {
+		hash.Reset()
+		hash.Write([]byte(addr))
+		rp := hash.Sum32()
+
+		if lp > rp && (lp-rp)%2 == 0 || lp < rp && (rp-lp)%2 != 0 {
 			continue
 		}
 
-		connector := process.NewConnector(mesh.Addr)
-		process.connectors[mesh.ID] = connector
+		connector := process.NewConnector(addr)
+		process.connectors[id] = connector
 		go connector.Run()
-		process.logger.Data(mesh).Info("sync mesh")
+		process.logger.Data(addr).Info("connect to mesh")
 	}
 
 	for id, mesh := range process.remotes {
-		if _, ok := meshes[string(id)]; !ok {
+		if _, ok := meshes[id]; !ok {
 			mesh.Destroy()
 			delete(process.remotes, id)
-			process.logger.Data(mesh.Info()).Info("mesh destroy")
+			process.logger.Data(mesh.Info()).Info("mesh destroyed")
 		}
 	}
 
 	for id, connector := range process.connectors {
-		if _, ok := meshes[string(id)]; !ok {
+		if _, ok := meshes[id]; !ok {
 			connector.Stop()
 			delete(process.connectors, id)
-			process.logger.Data(id).Info("connector stopped")
+			process.logger.Data(connector.Addr()).Info("connector stopped")
 		}
 	}
 }
-
-const prefix = "oceanus/"

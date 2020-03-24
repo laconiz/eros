@@ -8,15 +8,17 @@ import (
 	"time"
 )
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 type indexCipher struct {
-	sender   uint32
-	receiver uint32
-	rand     *rand.Rand
+	sender   uint32     // 发送序列号
+	receiver uint32     // 读取序列号
+	rand     *rand.Rand // 随机数生成器
 }
 
 const (
-	randSize = 4
-	flagSize = 4
+	randSize = 4 // 随机数长度
+	flagSize = 4 // 序列号长度
 )
 
 func cipherBytes(stream []byte) []byte {

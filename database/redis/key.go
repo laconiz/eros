@@ -31,7 +31,7 @@ func (k *Key) SetNX(key, value interface{}) (bool, error) {
 	}
 
 	str, err := redis.String(reply, nil)
-	return err == nil && str == OK, nil
+	return err == nil && str == OK, err
 }
 
 // 设置键的值并设置过期时间

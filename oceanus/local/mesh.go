@@ -16,24 +16,21 @@ func NewMesh(info *proto.Mesh, state *proto.State, router *router.Router) *Mesh 
 }
 
 type Mesh struct {
-	info   *proto.Mesh              // 网格信息
-	state  *proto.State             // 网格状态
-	nodes  map[proto.NodeID]*Node   // 网格节点
-	types  map[proto.NodeType]int64 // 网格节点类型统计
-	router *router.Router           // 均衡器
+	info   *proto.Mesh
+	state  *proto.State
+	nodes  map[proto.NodeID]*Node
+	types  map[proto.NodeType]int64
+	router *router.Router
 }
 
-// 获取网格信息
 func (mesh *Mesh) Info() *proto.Mesh {
 	return mesh.info
 }
 
-// 获取网格状态
 func (mesh *Mesh) State() (*proto.State, bool) {
 	return mesh.state, true
 }
 
-// 推送消息
 func (mesh *Mesh) Push(message *proto.Mail) error {
 	for _, receiver := range message.Receivers {
 		if node, ok := mesh.nodes[receiver.ID]; ok {
@@ -43,7 +40,6 @@ func (mesh *Mesh) Push(message *proto.Mail) error {
 	return nil
 }
 
-// 节点列表
 func (mesh *Mesh) Nodes() []*proto.Node {
 	var nodes []*proto.Node
 	for _, node := range mesh.nodes {
@@ -52,13 +48,11 @@ func (mesh *Mesh) Nodes() []*proto.Node {
 	return nodes
 }
 
-// 更新网格状态
 func (mesh *Mesh) UpdateState(state *proto.State) {
 	mesh.state = state
 	mesh.Expired()
 }
 
-// 设置网格过期
 func (mesh *Mesh) Expired() {
 	for typo, count := range mesh.types {
 		if count > 0 {
@@ -67,7 +61,6 @@ func (mesh *Mesh) Expired() {
 	}
 }
 
-// 插入一个节点
 func (mesh *Mesh) Insert(info *proto.Node, invoker interface{}) (*Node, error) {
 	// 删除旧节点
 	mesh.Remove(info.ID)

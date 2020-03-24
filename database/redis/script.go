@@ -37,14 +37,14 @@ func (s *script) Do(script *Script, args ...interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	if s.conn.conf.Log {
+	if s.conn.option.Log {
 		// log.Infof("script %v - %v", script.Name, args)
 	}
 
 	// 执行脚本
 	reply, err := script.Script.Do(conn, arguments...)
 
-	if s.conn.conf.Log {
+	if s.conn.option.Log {
 		// log.Infof("result %v - %v", decoder.FormatReply(reply), err)
 	}
 

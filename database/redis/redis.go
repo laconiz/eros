@@ -7,8 +7,8 @@ import (
 )
 
 type Redis struct {
-	pool *redis.Pool
-	conf Config
+	pool   *redis.Pool
+	option *Option
 }
 
 // 执行redis命令
@@ -24,14 +24,14 @@ func (r *Redis) Do(cmd string, args ...interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	if r.conf.Log {
+	if r.option.Log {
 		// log.Infof("request: %v - %v", cmd, arguments)
 	}
 
 	// 执行命令
 	reply, err := conn.Do(cmd, arguments...)
 
-	if r.conf.Log {
+	if r.option.Log {
 		// log.Infof("response: %v - %v", decoder.FormatReply(reply), err)
 	}
 
@@ -88,7 +88,7 @@ func (r *Redis) Atomic(key string) *Atomic {
 	return (&Atomic{conn: r, key: key}).Expired(3).Timeout(6).Ticker(50)
 }
 
-type Config struct {
+type Option struct {
 	Network   string // 网络类型
 	Address   string // 地址
 	Password  string // 密码
@@ -98,14 +98,14 @@ type Config struct {
 	Log       bool   // 显示日志
 }
 
-func New(conf Config) (*Redis, error) {
+func New(option *Option) (*Redis, error) {
 
 	dial := func() (redis.Conn, error) {
 		return redis.Dial(
-			conf.Network,
-			conf.Address,
-			redis.DialPassword(conf.Password),
-			redis.DialDatabase(conf.Database),
+			option.Network,
+			option.Address,
+			redis.DialPassword(option.Password),
+			redis.DialDatabase(option.Database),
 		)
 	}
 
@@ -113,13 +113,13 @@ func New(conf Config) (*Redis, error) {
 		pool: &redis.Pool{
 			Dial:            dial,
 			TestOnBorrow:    nil,
-			MaxIdle:         conf.MaxIdle,
-			MaxActive:       conf.MaxActive,
+			MaxIdle:         option.MaxIdle,
+			MaxActive:       option.MaxActive,
 			IdleTimeout:     0,
 			Wait:            true,
 			MaxConnLifetime: 0,
 		},
-		conf: conf,
+		option: option,
 	}
 
 	if _, err := r.string(PING); err != nil {

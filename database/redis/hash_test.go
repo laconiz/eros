@@ -72,20 +72,20 @@ func TestHash(t *testing.T) {
 	)
 
 	// 增量
-	Int64, err := h.Incr(key, 1)
+	Int64, err := h.Increment(key, 1)
 	assert(err != nil)
 	assert(h.Delete(key, key2) == nil)
-	Int64, err = h.Incr(key, 3)
+	Int64, err = h.Increment(key, 3)
 	assert(err == nil, Int64 == 3)
-	Int64, err = h.Incr(key, -4)
+	Int64, err = h.Increment(key, -4)
 	assert(err == nil, Int64 == -1)
 
 	// 无符号增量
-	Int64, success, err := h.UnsignedIncr(key2, 5)
+	Int64, success, err := h.Consume(key2, 5)
 	assert(err == nil, success, Int64 == 5)
-	Int64, success, err = h.UnsignedIncr(key2, -6)
+	Int64, success, err = h.Consume(key2, -6)
 	assert(err == nil, !success)
-	Int64, success, err = h.UnsignedIncr(key2, -3)
+	Int64, success, err = h.Consume(key2, -3)
 	assert(err == nil, success, Int64 == 2)
 
 	assert(k.Delete(key, key2) == nil)
