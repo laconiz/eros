@@ -26,6 +26,8 @@ func (service *Service) OnEnter(userID UserID, req *EnterREQ) {
 	if !ok {
 		return
 	}
+
+	room.users[userID] = 
 }
 
 func (service *Service) OnSpeak(userID UserID, req *SpeakREQ) {
@@ -35,13 +37,17 @@ func (service *Service) OnSpeak(userID UserID, req *SpeakREQ) {
 		return
 	}
 
-	room.Broadcast(&SpeakACK{User:userID, Content: req.content})
+	room.Broadcast(&SpeakACK{User: userID, Content: req.content})
 }
 
 func (service *Service) OnQuit(userID UserID, req *QuitREQ) {
 
-	if
+	room, ok := service.users[userID]
+	if !ok {
+		return
+	}
 
+	room.Broadcast()
 }
 
 func (service *Service) Destroy() {

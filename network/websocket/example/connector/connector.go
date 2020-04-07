@@ -4,8 +4,8 @@ import (
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/invoker"
-	"github.com/laconiz/eros/network/socket"
-	"github.com/laconiz/eros/network/socket/example"
+	"github.com/laconiz/eros/network/websocket"
+	"github.com/laconiz/eros/network/websocket/example"
 	"math/rand"
 	"time"
 )
@@ -15,7 +15,7 @@ var duration time.Duration
 
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-func NewConnector() *socket.Connector {
+func NewConnector() *websocket.Connector {
 
 	invoker := invoker.NewSocketInvoker()
 	invoker.Register(example.ACK{}, func(event *network.Event) {
@@ -24,15 +24,15 @@ func NewConnector() *socket.Connector {
 		duration += time.Since(ack.Time)
 	})
 
-	option := &socket.ConnectorOption{
-		Addr:      example.Addr,
+	option := &websocket.ConnectorOption{
+		Addr:      "ws://" + example.Addr + "/ws",
 		Reconnect: true,
-		Session: socket.SessionOption{
+		Session: websocket.SessionOption{
 			Invoker: invoker,
 		},
 	}
 
-	return socket.NewConnector(option)
+	return websocket.NewConnector(option)
 }
 
 func main() {
@@ -66,4 +66,4 @@ func main() {
 	}
 }
 
-var logger = logisor.Module("socket.example.connector")
+var logger = logisor.Module("websocket.example.connector")

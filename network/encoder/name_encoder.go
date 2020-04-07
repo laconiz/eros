@@ -13,7 +13,7 @@ import (
 type nameEncoder struct {
 }
 
-func (e *nameEncoder) Encode(msg interface{}) (*message.Message, error) {
+func (e *nameEncoder) Marshal(msg interface{}) (*message.Message, error) {
 
 	meta, ok := message.MetaByMsg(msg)
 	if !ok {
@@ -32,7 +32,7 @@ func (e *nameEncoder) Encode(msg interface{}) (*message.Message, error) {
 	return &message.Message{Meta: meta, Msg: msg, Raw: raw, Stream: buf.Bytes()}, nil
 }
 
-func (e *nameEncoder) Decode(stream []byte) (*message.Message, error) {
+func (e *nameEncoder) Unmarshal(stream []byte) (*message.Message, error) {
 
 	bp := bytes.SplitN(stream, []byte{NameEncoderSep()}, 2)
 	if len(bp) != 2 {

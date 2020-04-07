@@ -1,16 +1,16 @@
-package encoder
+package reader
 
-import "github.com/laconiz/eros/network/message"
+import "net"
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-type Encoder interface {
-	Marshal(msg interface{}) (*message.Message, error)
-	Unmarshal(stream []byte) (*message.Message, error)
+type Reader interface {
+	Write(net.Conn, []byte) error
+	Read(net.Conn) ([]byte, error)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 type Maker interface {
-	New() Encoder
+	New() Reader
 }

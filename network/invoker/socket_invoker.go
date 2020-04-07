@@ -15,7 +15,7 @@ type SocketInvoker struct {
 
 func (invoker *SocketInvoker) Register(msg interface{}, handler network.HandlerFunc) {
 
-	meta, ok := message.MetaByMessage(msg)
+	meta, ok := message.MetaByMsg(msg)
 	if !ok {
 		return
 	}

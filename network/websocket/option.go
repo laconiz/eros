@@ -44,12 +44,12 @@ func (option *SessionOption) parse() {
 		option.QueueLen = 32
 	}
 
-	if option.Encoder == nil {
-		option.Encoder = encoder.NewNameMaker()
-	}
-
 	if option.Cipher == nil {
 		option.Cipher = cipher.NewEmptyMaker()
+	}
+
+	if option.Encoder == nil {
+		option.Encoder = encoder.NewNameMaker()
 	}
 
 	if option.Invoker == nil {
@@ -65,18 +65,14 @@ type AcceptorOption struct {
 	Addr     string                   // 侦听地址
 	Verify   func(*gin.Context) error // 连接验证
 	Upgrader *websocket.Upgrader      // 连接升级
-	Session  SessionOption            // 连接配置
 	Level    logis.Level              // 日志等级
+	Session  SessionOption            // 连接配置
 }
 
 func (option *AcceptorOption) parse() {
 
 	if option.Name == "" {
 		option.Name = "acceptor"
-	}
-
-	if !option.Level.Valid() {
-		option.Level = logis.INFO
 	}
 
 	if option.Verify == nil {
@@ -87,6 +83,10 @@ func (option *AcceptorOption) parse() {
 
 	if option.Upgrader == nil {
 		option.Upgrader = &websocket.Upgrader{HandshakeTimeout: time.Second * 3, EnableCompression: true}
+	}
+
+	if !option.Level.Valid() {
+		option.Level = logis.INFO
 	}
 
 	option.Session.parse()
@@ -102,8 +102,8 @@ type ConnectorOption struct {
 	Header    http.Header       // 请求header
 	Dialer    *websocket.Dialer // 连接器
 	Delays    []time.Duration   // 重连延迟
-	Session   SessionOption     // session配置
 	Level     logis.Level       // 日志等级
+	Session   SessionOption     // session配置
 }
 
 func (option *ConnectorOption) parse() {
@@ -113,11 +113,7 @@ func (option *ConnectorOption) parse() {
 	}
 
 	if option.Dialer == nil {
-		option.Dialer = &websocket.Dialer{HandshakeTimeout: time.Second * 3, EnableCompression: true}
-	}
-
-	if !option.Level.Valid() {
-		option.Level = logis.INFO
+		option.Dialer = &websocket.Dialer{HandshakeTimeout: time.Second * 3}
 	}
 
 	if len(option.Delays) == 0 {
@@ -129,6 +125,10 @@ func (option *ConnectorOption) parse() {
 			time.Millisecond * 9000,
 			time.Millisecond * 15000,
 		}
+	}
+
+	if !option.Level.Valid() {
+		option.Level = logis.INFO
 	}
 
 	if option.Session.ReadLimit <= 0 {

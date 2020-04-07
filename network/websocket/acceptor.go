@@ -13,7 +13,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
-// 生成一个websocket侦听器
 
 func NewAcceptor(option *AcceptorOption) *Acceptor {
 
@@ -156,4 +155,26 @@ func (acceptor *Acceptor) upgrade(context *gin.Context) {
 	go session.run(func(session *Session) {
 		acceptor.sessions.Remove(session)
 	})
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (acceptor *Acceptor) Broadcast(msg interface{}) {
+	acceptor.sessions.Range(func(session session.Session) bool {
+		session.Send(msg)
+		return true
+	})
+}
+
+func (acceptor *Acceptor) BroadcastRaw(raw []byte) {
+	acceptor.sessions.Range(func(session session.Session) bool {
+		session.SendRaw(raw)
+		return true
+	})
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func init() {
+	gin.SetMode(gin.ReleaseMode)
 }

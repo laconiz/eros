@@ -5,8 +5,8 @@ import "github.com/laconiz/eros/oceanus"
 // ---------------------------------------------------------------------------------------------------------------------
 
 type Room struct {
-	id      RoomID                // 房间ID
-	users   map[UserID]oceanus.ID // 用户列表
+	id      RoomID                    // 房间ID
+	users   map[UserID]oceanus.NodeID // 用户列表
 	process oceanus.Oceanus
 }
 
@@ -27,7 +27,7 @@ func (room *Room) Proto() *RoomACK {
 
 func (room *Room) Broadcast(msg interface{}) {
 
-	var list []oceanus.ID
+	var list []oceanus.NodeID
 	for _, id := range room.users {
 		list = append(list, id)
 	}

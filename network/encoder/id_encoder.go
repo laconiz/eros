@@ -12,7 +12,7 @@ import (
 type idEncoder struct {
 }
 
-func (e *idEncoder) Encode(msg interface{}) (*message.Message, error) {
+func (e *idEncoder) Marshal(msg interface{}) (*message.Message, error) {
 
 	meta, ok := message.MetaByMsg(msg)
 	if !ok {
@@ -31,7 +31,7 @@ func (e *idEncoder) Encode(msg interface{}) (*message.Message, error) {
 	return &message.Message{Meta: meta, Msg: msg, Raw: raw, Stream: buf.Bytes()}, nil
 }
 
-func (e *idEncoder) Decode(stream []byte) (*message.Message, error) {
+func (e *idEncoder) Unmarshal(stream []byte) (*message.Message, error) {
 
 	buf := bytes.NewBuffer(stream)
 

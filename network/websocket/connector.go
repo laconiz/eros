@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"errors"
 	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
@@ -32,7 +33,17 @@ type Connector struct {
 	reconnect bool             // 是否重连
 	times     int              // 重连次数
 	logger    logis.Logger     // 日志
-	mutex     sync.Mutex
+	mutex     sync.RWMutex
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (connector *Connector) Connected() bool {
+
+	connector.mutex.RLock()
+	defer connector.mutex.RUnlock()
+
+	return connector.session != nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -69,6 +80,8 @@ func (connector *Connector) connect() {
 
 	option := connector.option
 
+	connector.logger.Data(option.Addr).Info("connect")
+
 	conn, _, err := option.Dialer.Dial(option.Addr, option.Header)
 	session := newSession(conn, option.Addr, &option.Session, connector.logger)
 
@@ -81,6 +94,7 @@ func (connector *Connector) connect() {
 
 	connector.session = session
 	connector.times = 0
+
 	go session.run(func(session *Session) {
 
 		connector.mutex.Lock()
@@ -120,4 +134,28 @@ func (connector *Connector) delay() {
 
 		connector.connect()
 	}()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func (connector *Connector) Send(msg interface{}) error {
+
+	connector.mutex.RLock()
+	defer connector.mutex.RUnlock()
+
+	if connector.session != nil {
+		return connector.session.Send(msg)
+	}
+	return errors.New("disconnected")
+}
+
+func (connector *Connector) SendRaw(raw []byte) error {
+
+	connector.mutex.RLock()
+	defer connector.mutex.RUnlock()
+
+	if connector.session != nil {
+		return connector.session.SendRaw(raw)
+	}
+	return errors.New("disconnected")
 }

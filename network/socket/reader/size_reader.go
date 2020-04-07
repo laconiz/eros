@@ -1,4 +1,4 @@
-package packer
+package reader
 
 import (
 	"encoding/binary"
@@ -7,15 +7,12 @@ import (
 	"net"
 )
 
-type Packer interface {
-	Encode(net.Conn, []byte) error
-	Decode(net.Conn) ([]byte, error)
+// ---------------------------------------------------------------------------------------------------------------------
+
+type sizeReader struct {
 }
 
-type sizePacker struct {
-}
-
-func (p *sizePacker) Encode(conn net.Conn, stream []byte) error {
+func (p *sizeReader) Write(conn net.Conn, stream []byte) error {
 
 	size := int32(len(stream))
 	if size == 0 {
@@ -33,7 +30,7 @@ func (p *sizePacker) Encode(conn net.Conn, stream []byte) error {
 	return nil
 }
 
-func (p *sizePacker) Decode(conn net.Conn) ([]byte, error) {
+func (p *sizeReader) Read(conn net.Conn) ([]byte, error) {
 
 	var size int32
 	if err := binary.Read(conn, binary.LittleEndian, &size); err != nil {
@@ -46,4 +43,18 @@ func (p *sizePacker) Decode(conn net.Conn) ([]byte, error) {
 	}
 
 	return stream, nil
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+func NewSizeMaker() Maker {
+	return &sizeReaderMaker{packer: &sizeReader{}}
+}
+
+type sizeReaderMaker struct {
+	packer Reader
+}
+
+func (m *sizeReaderMaker) New() Reader {
+	return m.packer
 }

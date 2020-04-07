@@ -11,17 +11,19 @@ const (
 type Service interface {
 	Run()
 	Stop()
-	Addr() string
 	State() State
 }
 
 type Acceptor interface {
 	Service
 	Count() int64
+	Broadcast(interface{}) error
+	BroadcastRaw([]byte) error
 }
 
 type Connector interface {
 	Service
 	Connected() bool
 	Send(interface{}) error
+	SendRaw([]byte) error
 }

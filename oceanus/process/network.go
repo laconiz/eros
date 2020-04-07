@@ -7,7 +7,7 @@ import (
 	"github.com/laconiz/eros/network/encoder"
 	"github.com/laconiz/eros/network/invoker"
 	"github.com/laconiz/eros/network/socket"
-	"github.com/laconiz/eros/network/socket/packer"
+	"github.com/laconiz/eros/network/socket/reader"
 	"github.com/laconiz/eros/oceanus/proto"
 	"time"
 )
@@ -31,12 +31,12 @@ func (process *Process) NewInvoker() invoker.Invoker {
 
 func (process *Process) NewSessionOption() socket.SessionOption {
 	return socket.SessionOption{
-		Timeout:  time.Second * 11,
-		QueueLen: 64,
-		Invoker:  process.NewInvoker(),
-		Encoder:  encoder.NewNameMaker(),
-		Cipher:   cipher.NewEmptyMaker(),
-		Packer:   packer.NewSizeMaker(),
+		Timeout: time.Second * 11,
+		Queue:   64,
+		Invoker: process.NewInvoker(),
+		Encoder: encoder.NewNameMaker(),
+		Cipher:  cipher.NewEmptyMaker(),
+		Reader:  reader.NewSizeMaker(),
 	}
 }
 

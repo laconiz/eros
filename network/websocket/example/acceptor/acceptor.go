@@ -4,14 +4,14 @@ import (
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/invoker"
-	"github.com/laconiz/eros/network/socket"
-	"github.com/laconiz/eros/network/socket/example"
+	"github.com/laconiz/eros/network/websocket"
+	"github.com/laconiz/eros/network/websocket/example"
 	"time"
 )
 
 var times uint64
 
-func NewAcceptor() *socket.Acceptor {
+func NewAcceptor() *websocket.Acceptor {
 
 	invoker := invoker.NewSocketInvoker()
 	invoker.Register(example.REQ{}, func(event *network.Event) {
@@ -20,14 +20,14 @@ func NewAcceptor() *socket.Acceptor {
 		times++
 	})
 
-	option := &socket.AcceptorOption{
+	option := &websocket.AcceptorOption{
 		Addr: example.Addr,
-		Session: socket.SessionOption{
+		Session: websocket.SessionOption{
 			Invoker: invoker,
 		},
 	}
 
-	return socket.NewAcceptor(option)
+	return websocket.NewAcceptor(option)
 }
 
 func main() {
@@ -42,4 +42,4 @@ func main() {
 	}
 }
 
-var logger = logisor.Module("socket.example.acceptor")
+var logger = logisor.Module("websocket.example.acceptor")

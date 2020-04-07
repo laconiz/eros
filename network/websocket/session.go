@@ -7,7 +7,7 @@ import (
 	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/cipher"
-	"github.com/laconiz/eros/network/message"
+	"github.com/laconiz/eros/network/encoder"
 	"github.com/laconiz/eros/network/queue"
 	"github.com/laconiz/eros/network/session"
 	"sync"
@@ -17,7 +17,9 @@ import (
 // ---------------------------------------------------------------------------------------------------------------------
 
 func newSession(conn *websocket.Conn, addr string, option *SessionOption, logger logis.Logger) *Session {
+
 	id := session.Increment()
+
 	return &Session{
 		id:      id,
 		addr:    addr,
@@ -33,13 +35,13 @@ func newSession(conn *websocket.Conn, addr string, option *SessionOption, logger
 // ---------------------------------------------------------------------------------------------------------------------
 
 type Session struct {
-	id       session.ID      // session ID
-	addr     string          // 连接地址
-	conn     *websocket.Conn // websocket连接
+	id       session.ID      // ID
+	addr     string          // 地址
+	conn     *websocket.Conn // 连接
 	option   *SessionOption  // 配置
-	queue    *queue.Queue    // 写入队列
-	logger   logis.Logger    // 日志
-	encoder  message.Encoder // 编码器
+	queue    *queue.Queue    // 发送队列
+	logger   logis.Logger    // 日志接口
+	encoder  encoder.Encoder // 编码器
 	cipher   cipher.Cipher   // 加密器
 	sync.Map                 // 附加信息
 }
@@ -62,9 +64,9 @@ func (session *Session) Close() {
 
 func (session *Session) Send(msg interface{}) error {
 
-	message, err := session.encoder.Encode(msg)
+	message, err := session.encoder.Marshal(msg)
 	if err != nil {
-		session.logger.Data(msg).Err(err).Error("encoder encode error")
+		session.logger.Data(msg).Err(err).Error("marshal error")
 		return err
 	}
 
@@ -86,28 +88,34 @@ func (session *Session) read() {
 
 	for {
 
-		session.conn.SetReadDeadline(time.Now().Add(option.Timeout))
+		deadline := time.Now().Add(option.Timeout)
+		session.conn.SetReadDeadline(deadline)
 
 		_, stream, err := session.conn.ReadMessage()
 		if err != nil {
-			logger.Err(err).Info("read stream error")
+			logger.Err(err).Info("read error")
 			break
 		}
 
 		raw, err := session.cipher.Decode(stream)
 		if err != nil {
-			logger.Data(raw).Err(err).Warn("cipher decode error")
+			logger.Data(raw).Err(err).Warn("decode error")
 			break
 		}
 
-		message, err := session.encoder.Decode(raw)
+		message, err := session.encoder.Unmarshal(raw)
 		if err != nil {
-			logger.Data(raw).Err(err).Warn("encoder decode error")
+			logger.Data(raw).Err(err).Warn("unmarshal error")
 			break
 		}
 
-		logger.Data(string(raw)).Debug("read message")
-		session.invoke(&network.Event{Meta: message.Meta, Msg: message.Msg, Ses: session})
+		logger.Data(string(raw)).Debug("recv message")
+
+		session.invoke(&network.Event{
+			Meta: message.Meta,
+			Msg:  message.Msg,
+			Ses:  session,
+		})
 	}
 }
 
@@ -118,22 +126,28 @@ func (session *Session) write() {
 
 	for {
 
-		session.conn.SetWriteDeadline(time.Now().Add(option.Timeout))
+		deadline := time.Now().Add(option.Timeout)
+		session.conn.SetWriteDeadline(deadline)
 
-		raws, closed := session.queue.Pick()
+		events, closed := session.queue.Pick()
 
-		for _, raw := range raws {
+		for _, event := range events {
 
-			stream, err := session.cipher.Encode(raw.([]byte))
+			raw := event.([]byte)
+
+			stream, err := session.cipher.Encode(raw)
 			if err != nil {
-				logger.Data(raw).Err(err).Warn("cipher encode error")
+				logger.Data(raw).Err(err).Warn("encode error")
 				return
 			}
 
-			if err := session.conn.WriteMessage(websocket.BinaryMessage, stream); err != nil {
-				logger.Err(err).Warn("write stream error")
+			err = session.conn.WriteMessage(websocket.BinaryMessage, stream)
+			if err != nil {
+				logger.Data(stream).Err(err).Warn("write error")
 				return
 			}
+
+			logger.Data(string(raw)).Debug("send message")
 		}
 
 		if closed {
@@ -144,7 +158,7 @@ func (session *Session) write() {
 
 func (session *Session) run(callback func(*Session)) {
 
-	session.logger.Info("connected")
+	session.logger.Data(session.Addr()).Info("connected")
 
 	go func() {
 		session.write()
