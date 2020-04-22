@@ -5,12 +5,12 @@ import (
 )
 
 func NewRouter() *Router {
-	return &Router{nodes: map[proto.NodeID]Node{}, balancers: map[proto.NodeType]*Balancer{}}
+	return &Router{nodes: map[proto.NodeID]Node{}, balancers: map[proto.NodeType]*Bus{}}
 }
 
 type Router struct {
 	nodes     map[proto.NodeID]Node
-	balancers map[proto.NodeType]*Balancer
+	balancers map[proto.NodeType]*Bus
 	packer    Packer
 }
 

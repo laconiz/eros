@@ -8,11 +8,11 @@ import (
 	"sort"
 )
 
-func newBalancer() *Balancer {
-	return &Balancer{nodes: map[proto.NodeKey]Node{}}
+func newBalancer() *Bus {
+	return &Bus{nodes: map[proto.NodeKey]Node{}}
 }
 
-type Balancer struct {
+type Bus struct {
 	expired  bool
 	nodes    map[proto.NodeKey]Node
 	elements list.List
@@ -20,13 +20,13 @@ type Balancer struct {
 }
 
 // 插入节点
-func (balancer *Balancer) Insert(node Node) {
+func (balancer *Bus) Insert(node Node) {
 	balancer.Expired()
 	balancer.nodes[node.Info().Key] = node
 }
 
 // 删除节点
-func (balancer *Balancer) Remove(node Node) {
+func (balancer *Bus) Remove(node Node) {
 	stored, ok := balancer.nodes[node.Info().Key]
 	if ok && stored.Info().ID == node.Info().ID {
 		balancer.Expired()
@@ -35,12 +35,12 @@ func (balancer *Balancer) Remove(node Node) {
 }
 
 // 设置均衡器过期
-func (balancer *Balancer) Expired() {
+func (balancer *Bus) Expired() {
 	balancer.expired = true
 }
 
 // 重新均衡
-func (balancer *Balancer) rebalance() {
+func (balancer *Bus) rebalance() {
 
 	loads := Loads{}
 
@@ -59,7 +59,7 @@ func (balancer *Balancer) rebalance() {
 }
 
 // 发送消息
-func (balancer *Balancer) Balance(mail *proto.Mail) error {
+func (balancer *Bus) Balance(mail *proto.Mail) error {
 
 	if balancer.expired {
 		balancer.rebalance()
@@ -70,7 +70,7 @@ func (balancer *Balancer) Balance(mail *proto.Mail) error {
 }
 
 // 随机发送消息
-func (balancer *Balancer) Random(raw *proto.Mail) error {
+func (balancer *Bus) Random(raw *proto.Mail) error {
 
 	node, ok := balancer.nodes[raw.Type]
 	if !ok {
@@ -81,7 +81,7 @@ func (balancer *Balancer) Random(raw *proto.Mail) error {
 }
 
 //
-func (balancer *Balancer) Key(key proto.NodeKey, mail *proto.Mail) error {
+func (balancer *Bus) Key(key proto.NodeKey, mail *proto.Mail) error {
 
 	node, ok := balancer.nodes[key]
 	if !ok {
@@ -93,7 +93,7 @@ func (balancer *Balancer) Key(key proto.NodeKey, mail *proto.Mail) error {
 }
 
 //
-func (balancer *Balancer) Broadcast(origin *proto.Mail) error {
+func (balancer *Bus) Broadcast(origin *proto.Mail) error {
 
 	group := map[Mesh][]Node{}
 	for _, node := range balancer.nodes {

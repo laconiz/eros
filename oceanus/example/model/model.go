@@ -27,8 +27,8 @@ type Model struct {
 // redis key定义
 
 const (
-	UserMaxID  = "user.maxID" // 当前最大用户ID
-	ItemPrefix = "item."      // 物品表前缀
+	RdsHashItemPref = "item."
+	RdsHashToken    = "token"
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -45,10 +45,15 @@ const (
 // model 模块名
 
 const (
-	ModuleUser = "user"
-	ModuleItem = "item"
-	ModuleMail = "mail"
+	ModuleUser  = "user"
+	ModuleItem  = "item"
+	ModuleMail  = "mail"
+	ModuleToken = "token"
 )
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 配置文件路径
+const OptionPrefix = "option/"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // model模块日志接口生成器

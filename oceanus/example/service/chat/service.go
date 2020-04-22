@@ -37,7 +37,7 @@ func (service *Service) OnSpeak(userID UserID, req *SpeakREQ) {
 		return
 	}
 
-	room.Broadcast(&SpeakACK{User: userID, Content: req.content})
+	room.Broadcast(&SpeakACK{User: userID, Content: req.Content})
 }
 
 func (service *Service) OnQuit(userID UserID, req *QuitREQ) {

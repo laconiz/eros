@@ -1,9 +1,11 @@
 package oceanus
 
+import "github.com/laconiz/eros/oceanus/process"
+
 type Oceanus interface {
 
 	//
-	Create(typo Type, key Key) (NodeID, error)
+	Create(typo NodeType, key NodeKey) (NodeID, error)
 	//
 	Destroy(NodeID)
 
@@ -12,19 +14,25 @@ type Oceanus interface {
 	// 向指定节点列表发送消息
 	SendByIDs([]NodeID, interface{}) error
 	// 指定路由规则发送消息
-	SendByKey(typo Type, key Key, msg interface{}) error
+	SendByKey(typo NodeType, key NodeKey, msg interface{}) error
 	// 指定路由规则列表发送消息
-	SendByKeys([]Key, interface{}) error
+	SendByKeys([]NodeKey, interface{}) error
 
 	// 负载均衡发送
-	Route(typo Type, msg interface{}) error
+	Route(typo NodeType, msg interface{}) error
 	// 广播消息
-	Broadcast(typo Type, msg interface{}) error
+	Broadcast(typo NodeType, msg interface{}) error
 
 	// 指定节点ID的RPC调用
 	CallByID(id NodeID, req interface{}, resp interface{}) error
 	// 指定路由规则的RPC调用
-	CallByKey(typo Type, key Key, req interface{}, resp interface{}) error
+	CallByKey(typo NodeType, key NodeKey, req interface{}, resp interface{}) error
 	// 负载均衡的RPC调用
-	CallByRoute(typo Type, req interface{}, resp interface{}) error
+	CallByRoute(typo NodeType, req interface{}, resp interface{}) error
+}
+
+var progress = &process.Process{}
+
+func Create(typo NodeType, key NodeKey) (NodeID, error) {
+	return NodeID(0), nil
 }

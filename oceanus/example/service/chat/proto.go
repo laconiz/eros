@@ -27,7 +27,7 @@ type RoomACK struct {
 // 聊天消息
 
 type SpeakREQ struct {
-	content string `json:"content"` // 聊天内容
+	Content string `json:"content"` // 聊天内容
 }
 
 type SpeakACK struct {

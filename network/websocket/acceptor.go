@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+const KeyURL = "ws"
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 func NewAcceptor(option *AcceptorOption) *Acceptor {
@@ -152,6 +154,7 @@ func (acceptor *Acceptor) upgrade(context *gin.Context) {
 
 	session := newSession(conn, addr, &option.Session, logger)
 	acceptor.sessions.Insert(session)
+	session.Store(KeyURL, context.Request.URL)
 	go session.run(func(session *Session) {
 		acceptor.sessions.Remove(session)
 	})
