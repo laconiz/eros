@@ -37,6 +37,10 @@ type MeshState struct {
 
 type MailID string
 
+type RpcID string
+
+const emptyRpcID = ""
+
 type Mail struct {
 	ID     MailID                 `json:"id"`
 	Header map[string]interface{} `json:"header"`

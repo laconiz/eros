@@ -31,6 +31,7 @@ type Bus struct {
 func (bus *Bus) RouteByKey(key NodeKey, mail *Mail) error {
 
 	if node, ok := bus.nodes[key]; ok {
+		mail.To = []*NodeInfo{node.Info()}
 		return node.Mail(mail)
 	}
 
@@ -51,25 +52,41 @@ func (bus *Bus) RouteByKeys(keys []NodeKey, mail *Mail) error {
 	return nil
 }
 
+// 负载均衡邮件
 func (bus *Bus) Route(mail *Mail) error {
 
 	if bus.expired {
 
 	}
-	bus.expired = true
+	bus.expired = false
 
-	if
+	if bus.list.Len() > 0 {
+		node := bus.list.Remove(bus.list.Front())
+		err := node.(Node).Mail(mail)
+		bus.list.PushBack(node)
+		return err
+	}
+
+	return fmt.Errorf("can not find node on bus %v", bus.typo)
 }
 
+// 广播邮件
 func (bus *Bus) Broadcast(mail *Mail) error {
 
+	// 构建发送对象集
 	hubs := Hubs{}
-
 	for _, node := range bus.nodes {
 		hubs.Trunk(node)
 	}
 
-	hubs.Mail(mail)
+	// 设置邮件信息
+	mail.Type = bus.typo
+
+	// 发送邮件
+	for _, hub := range hubs {
+		hub.mesh.Mail(mail)
+	}
+
 	return nil
 }
 
@@ -79,8 +96,6 @@ type Router struct {
 	nodes map[NodeID]Node
 	buses map[NodeType]*Bus
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
 
 func (rt *Router) SendByID(id NodeID, mail *Mail) error {
 
@@ -105,6 +120,8 @@ func (rt *Router) SendByIDs(list []NodeID, msg interface{}) error {
 
 		hubs.Trunk(node)
 	}
+
+	return nil
 }
 
 func (rt *Router) RouteByKey(typo NodeType, key NodeKey, mail *Mail) error {
@@ -150,7 +167,7 @@ func (rt *Router) Broadcast(typo NodeType, mail *Mail) error {
 // ---------------------------------------------------------------------------------------------------------------------
 
 type Hub struct {
-	mesh Mesh
+	mesh  Mesh
 	nodes []*NodeInfo
 }
 
