@@ -13,7 +13,7 @@ type Watcher struct {
 	consul *Consul
 }
 
-func (w *Watcher) Keyprefix(prefix string, handler watch.HandlerFunc) (*Plan, error) {
+func (w *Watcher) Prefix(prefix string, handler watch.HandlerFunc) (*Plan, error) {
 
 	if handler == nil {
 		return nil, fmt.Errorf("nil handler")

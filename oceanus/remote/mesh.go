@@ -1,30 +1,52 @@
+// 远程网格
 package remote
 
 import (
-	"errors"
+	"github.com/laconiz/eros/network"
 	"github.com/laconiz/eros/network/session"
+	"github.com/laconiz/eros/oceanus"
+	"github.com/laconiz/eros/oceanus/abstract"
 	"github.com/laconiz/eros/oceanus/proto"
-	"github.com/laconiz/eros/oceanus/router"
+	"hash/fnv"
 )
 
-func NewMesh(info *proto.Mesh, state *proto.State, router *router.Router) *Mesh {
-	return &Mesh{
-		info:    info,
-		state:   state,
-		nodes:   map[proto.NodeID]*Node{},
-		types:   map[proto.NodeType]int64{},
-		router:  router,
-		session: nil,
+// 创建远程网格
+func New(info *proto.Mesh, process abstract.Process) *Mesh {
+
+	mesh := &Mesh{
+		info:  info,
+		state: &proto.State{},
+		nodes: map[proto.NodeID]*Node{},
+		types: map[proto.NodeType]int32{},
 	}
+
+	// 计算ADDR HASH值
+	hash := fnv.New32()
+	hash.Write([]byte(info.Addr))
+	rp := hash.Sum32()
+	hash.Reset()
+	hash.Write([]byte(process.Local().Info().Addr))
+	lp := hash.Sum32()
+
+	// 创建客户端连接
+	if lp >= rp && (lp-rp)%2 == 0 ||
+		rp > lp && (rp-lp)%2 != 0 {
+		mesh.connector = process.NewConnector(info.Addr)
+		go mesh.connector.Run()
+	}
+
+	return mesh
 }
 
+// 远程网格
 type Mesh struct {
-	info    *proto.Mesh              // 网格信息
-	state   *proto.State             // 网格状态
-	nodes   map[proto.NodeID]*Node   // 节点列表
-	types   map[proto.NodeType]int64 // 网格节点类型统计
-	router  *router.Router           // 路由器
-	session session.Session          // 网络连接
+	info      *proto.Mesh              // 网格信息
+	state     *proto.State             // 网格状态
+	nodes     map[proto.NodeID]*Node   // 节点列表
+	types     map[proto.NodeType]int32 // 节点类型统计
+	session   session.Session          // 网络连接
+	connector network.Connector        // 连接器
+	router    abstract.Router          // 路由器
 }
 
 // 网格信息
@@ -37,68 +59,87 @@ func (mesh *Mesh) State() (*proto.State, bool) {
 	return mesh.state, mesh.session != nil
 }
 
-// 向网格发送数据
-func (mesh *Mesh) Push(mail *proto.Mail) error {
-	return mesh.Send(mail)
+// 节点列表
+func (mesh *Mesh) Nodes() []*proto.Node {
+
+	var nodes []*proto.Node
+	for _, node := range mesh.nodes {
+		nodes = append(nodes, node.Info())
+	}
+
+	return nodes
 }
 
-func (mesh *Mesh) Send(msg interface{}) error {
+// 发送邮件
+func (mesh *Mesh) Mail(mail *proto.Mail) error {
+
 	if mesh.session == nil {
-		return errors.New("invalid session")
+		return oceanus.ErrDisconnected
 	}
-	return mesh.session.Send(msg)
+
+	return mesh.session.Send(mail)
 }
 
 // 更新网格状态
 func (mesh *Mesh) UpdateState(state *proto.State) {
 	mesh.state = state
-	mesh.Expired()
+	mesh.expired()
 }
 
 // 更新网格连接
 func (mesh *Mesh) UpdateSession(session session.Session) {
 	mesh.session = session
-	mesh.Expired()
+	mesh.expired()
 }
 
-// 设置网格过期
-func (mesh *Mesh) Expired() {
+// 设置路由器过期
+func (mesh *Mesh) expired() {
+
 	for typo, count := range mesh.types {
-		if count > 0 {
-			mesh.router.Expired(typo)
+
+		if count == 0 {
+			continue
 		}
+
+		mesh.router.Expired(typo)
 	}
 }
 
-// 插入一个节点
-func (mesh *Mesh) Insert(list []*proto.Node) {
-	mesh.Remove(list)
-	for _, info := range list {
+// 销毁网格
+func (mesh *Mesh) Destroy() {
+
+	for _, node := range mesh.nodes {
+		node.Destroy()
+	}
+
+	mesh.nodes = map[proto.NodeID]*Node{}
+	mesh.types = map[proto.NodeType]int32{}
+}
+
+// 插入节点
+func (mesh *Mesh) Insert(nodes []*proto.Node) {
+
+	mesh.Remove(nodes)
+
+	for _, info := range nodes {
 		node := newNode(info, mesh)
-		mesh.nodes[info.ID] = node
 		mesh.router.Insert(node)
 		mesh.types[info.Type]++
 	}
 }
 
-// 销毁一个节点
-func (mesh *Mesh) Remove(list []*proto.Node) {
-	for _, info := range list {
-		if node, ok := mesh.nodes[info.ID]; ok {
-			node.Destroy()
-			delete(mesh.nodes, info.ID)
-			mesh.router.Remove(node)
-			mesh.types[info.Type]--
-		}
-	}
-}
+// 移除节点
+func (mesh *Mesh) Remove(nodes []*proto.Node) {
 
-// 销毁一个网格
-func (mesh *Mesh) Destroy() {
-	for _, node := range mesh.nodes {
-		node.Destroy()
-		mesh.router.Remove(node)
+	for _, info := range nodes {
+
+		_, ok := mesh.nodes[info.ID]
+		if !ok {
+			continue
+		}
+
+		mesh.router.Remove(info.ID)
+		mesh.types[info.Type]--
+		delete(mesh.nodes, info.ID)
 	}
-	mesh.nodes = map[proto.NodeID]*Node{}
-	mesh.types = map[proto.NodeType]int64{}
 }

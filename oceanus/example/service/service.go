@@ -1,9 +1,11 @@
 package service
 
-import "github.com/laconiz/eros/oceanus"
+import (
+	"github.com/laconiz/eros/oceanus/proto"
+)
 
 const (
-	User oceanus.NodeType = "user"
-	Chat oceanus.NodeType = "chat"
-	Mail oceanus.NodeType = "mail"
+	User proto.NodeType = "user"
+	Chat proto.NodeType = "chat"
+	Mail proto.NodeType = "mail"
 )

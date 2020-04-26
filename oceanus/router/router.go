@@ -1,77 +1,148 @@
 package router
 
 import (
+	"github.com/laconiz/eros/oceanus/abstract"
 	"github.com/laconiz/eros/oceanus/proto"
 )
 
-func NewRouter() *Router {
-	return &Router{nodes: map[proto.NodeID]Node{}, balancers: map[proto.NodeType]*Bus{}}
+type ID = proto.NodeID
+type Type = proto.NodeType
+type Key = proto.NodeKey
+
+type Mesh = abstract.Mesh
+type Node = abstract.Node
+
+// 创建路由器
+func New() abstract.Router {
+	return &Router{
+		nodes: map[ID]Node{},
+		buses: map[Type]*Bus{},
+	}
 }
 
+// 路由器
 type Router struct {
-	nodes     map[proto.NodeID]Node
-	balancers map[proto.NodeType]*Bus
-	packer    Packer
+	nodes map[ID]Node   // 节点列表
+	buses map[Type]*Bus // 总线列表
 }
 
-func (router *Router) Insert(node Node) {
+// 添加节点
+func (rt *Router) Insert(node Node) {
 
-	router.nodes[node.Info().ID] = node
+	id := node.Info().ID
+	// 删除相同ID节点
+	rt.Remove(id)
+	// 插入节点列表
+	rt.nodes[id] = node
 
-	balancer, ok := router.balancers[node.Info().Type]
+	typo := node.Info().Type
+	// 查询总线
+	bus, ok := rt.buses[typo]
+	// 创建总线
 	if !ok {
-		balancer = newBalancer()
-		router.balancers[node.Info().Type] = balancer
+		bus = NewBus()
+		rt.buses[typo] = bus
+	}
+	// 将节点插入总线
+	bus.Insert(node)
+}
+
+// 移除节点
+func (rt *Router) Remove(id ID) {
+
+	// 查询节点
+	node, ok := rt.nodes[id]
+	if !ok {
+		return
 	}
 
-	balancer.Insert(node)
+	// 移除节点
+	delete(rt.nodes, id)
+	typo := node.Info().Type
+	// 从总线移除节点
+	rt.buses[typo].Remove(node)
 }
 
-func (router *Router) Remove(list []*proto.Node) {
+// 设置总线状态过期
+func (rt *Router) Expired(typo Type) {
 
-	for _, info := range list {
+	// 查询总线
+	bus, ok := rt.buses[typo]
+	if !ok {
+		return
+	}
 
-		if node, ok := router.nodes[info.ID]; ok {
-			delete(router.nodes, info.ID)
-			router.balancers[info.Type].Remove(node)
+	// 设置总线过期
+	bus.Expired()
+}
+
+// 根据ID查询节点
+func (rt *Router) ByID(id ID) Node {
+	return rt.nodes[id]
+}
+
+// 根据ID列表查询节点列表
+func (rt *Router) ByIDList(list []ID) []Node {
+
+	var nodes []Node
+
+	for _, id := range list {
+
+		node, ok := rt.nodes[id]
+		if !ok {
+			continue
 		}
+
+		nodes = append(nodes, node)
 	}
+
+	return nodes
 }
 
-func (router *Router) Expired(typo proto.NodeType) {
-	if balancer, ok := router.balancers[typo]; ok {
-		balancer.Expired()
-	}
-}
+// 根据KEY查询节点
+func (rt *Router) ByKey(typo Type, key Key) Node {
 
-func (router *Router) RouteByID(id proto.NodeID, mail *proto.Mail) {
-
-	node, ok := router.nodes[id]
+	// 查询总线
+	bus, ok := rt.buses[typo]
 	if !ok {
-		return
+		return nil
 	}
 
-	mail = mail.Copy()
-	mail.Receivers = []*proto.Node{node.Info()}
-	node.Push(mail)
+	return bus.ByKey(key)
 }
 
-func (router *Router) RouteByKey(typo proto.NodeType, key proto.NodeKey, mail *proto.Mail) {
+// 根据KEY列表查询节点列表
+func (rt *Router) ByKeys(typo Type, keys []Key) []Node {
 
-	balancer, ok := router.balancers[typo]
+	// 查询总线
+	bus, ok := rt.buses[typo]
 	if !ok {
-		return
+		return nil
 	}
 
-	balancer.Key(key, mail)
+	return bus.ByKeys(keys)
 }
 
-func (router *Router) RandByType(typo proto.NodeType, msg interface{}) {
+// 根据负载查询节点
+func (rt *Router) ByLoad(typo Type) Node {
 
-	balancer, ok := router.balancers[typo]
+	// 查询总线
+	bus, ok := rt.buses[typo]
 	if !ok {
-		return
+		return nil
 	}
 
-	balancer.Random()
+	return bus.ByLoad()
+}
+
+// 根据TYPE查询节点列表
+func (rt *Router) ByType(typo Type) []Node {
+
+	// 查询总线
+	bus, ok := rt.buses[typo]
+	if !ok {
+		return nil
+	}
+
+	return bus.Nodes()
 }

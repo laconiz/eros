@@ -1,40 +1,32 @@
+// 本地节点管理器
+
 package local
 
 import (
-	"errors"
-	"fmt"
+	"github.com/laconiz/eros/logis"
+	"github.com/laconiz/eros/oceanus/abstract"
 	"github.com/laconiz/eros/oceanus/proto"
-	"github.com/laconiz/eros/oceanus/router"
 )
 
-// ---------------------------------------------------------------------------------------------------------------------
-
-type Progress interface {
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-
-func NewMesh(info *proto.Mesh, state *proto.State, router *router.Router) *Mesh {
+func New(info *proto.Mesh, proc abstract.Process) *Mesh {
 	return &Mesh{
-		info:   info,
-		state:  state,
-		nodes:  map[proto.NodeID]*Node{},
-		types:  map[proto.NodeType]int64{},
-		router: router,
+		info:    info,
+		state:   &proto.State{},
+		nodes:   map[proto.NodeID]*Node{},
+		types:   map[proto.NodeType]int32{},
+		logger:  proc.Logger(),
+		process: proc,
 	}
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-
 type Mesh struct {
-	info   *proto.Mesh
-	state  *proto.State
-	nodes  map[proto.NodeID]*Node
-	types  map[proto.NodeType]int64
-	router *router.Router
+	info    *proto.Mesh              // 网格信息
+	state   *proto.State             // 网格状态
+	nodes   map[proto.NodeID]*Node   // 节点列表
+	types   map[proto.NodeType]int32 // 节点类型统计
+	logger  logis.Logger             // 日志接口
+	process abstract.Process
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
 
 func (mesh *Mesh) Info() *proto.Mesh {
 	return mesh.info
@@ -44,78 +36,47 @@ func (mesh *Mesh) State() (*proto.State, bool) {
 	return mesh.state, true
 }
 
-func (mesh *Mesh) Push(mail *proto.Mail) error {
-	for _, receiver := range mail.Receivers {
-		if node, ok := mesh.nodes[receiver.ID]; ok {
-			node.Mail(mail)
-		}
-	}
-	return nil
-}
-
 func (mesh *Mesh) Nodes() []*proto.Node {
+
 	var nodes []*proto.Node
 	for _, node := range mesh.nodes {
 		nodes = append(nodes, node.Info())
 	}
+
 	return nodes
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
+func (mesh *Mesh) Mail(mail *proto.Mail) error {
 
-func (mesh *Mesh) UpdateState(state *proto.State) {
-	mesh.state = state
-	mesh.Expired()
-}
+	for _, ni := range mail.To {
 
-func (mesh *Mesh) Expired() {
-	for typo, count := range mesh.types {
-		if count > 0 {
-			mesh.router.Expired(typo)
+		node, ok := mesh.nodes[ni.ID]
+		if !ok {
+			continue
 		}
-	}
-}
 
-// ---------------------------------------------------------------------------------------------------------------------
-
-func (mesh *Mesh) Create(pn *proto.Node, h interface{}) *Node {
-
-	if _, ok := mesh.nodes[pn.ID]; ok {
-		return nil
+		node.Mail(mail)
 	}
 
-	node := NewNode(pn, mesh, h)
-	mesh.nodes[pn.ID] = node
-
-	mesh.router.Insert(node)
-	mesh.types[pn.Type]++
-
-	return node
+	return nil
 }
-
-func (mesh *Mesh) Delete(id proto.NodeID) {
-
-	node, ok := mesh.nodes[id]
-	if !ok {
-		return
-	}
-
-	node.Destroy()
-	delete(mesh.nodes, id)
-
-	mesh.types[node.info.Type]--
-	mesh.router.Remove([]*proto.Node{node.info})
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
 
 func (mesh *Mesh) Destroy() {
 
-	for _, node := range mesh.nodes {
+	for id, node := range mesh.nodes {
 		node.Destroy()
-		mesh.router.Remove(node.info)
 	}
 
 	mesh.nodes = map[proto.NodeID]*Node{}
-	mesh.types = map[proto.NodeType]int64{}
+	mesh.types = map[proto.NodeType]int32{}
+}
+
+//
+func (mesh *Mesh) Create(ni proto.Node, handler interface{}) *Node {
+
+}
+
+//
+func (mesh *Mesh) Delete(id proto.NodeID) {
+
 }

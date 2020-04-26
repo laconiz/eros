@@ -2,114 +2,110 @@ package router
 
 import (
 	"container/list"
-	"fmt"
-	"github.com/laconiz/eros/logis"
-	"github.com/laconiz/eros/oceanus/proto"
-	"sort"
 )
 
-func newBalancer() *Bus {
-	return &Bus{nodes: map[proto.NodeKey]Node{}}
-}
-
-type Bus struct {
-	expired  bool
-	nodes    map[proto.NodeKey]Node
-	elements list.List
-	logger   logis.Logger
-}
-
-// 插入节点
-func (balancer *Bus) Insert(node Node) {
-	balancer.Expired()
-	balancer.nodes[node.Info().Key] = node
-}
-
-// 删除节点
-func (balancer *Bus) Remove(node Node) {
-	stored, ok := balancer.nodes[node.Info().Key]
-	if ok && stored.Info().ID == node.Info().ID {
-		balancer.Expired()
-		delete(balancer.nodes, node.Info().Key)
+// 创建路由总线
+func NewBus() *Bus {
+	return &Bus{
+		nodes: map[Key]Node{},
+		list:  list.New(),
 	}
 }
 
-// 设置均衡器过期
-func (balancer *Bus) Expired() {
-	balancer.expired = true
+// 路由总线
+type Bus struct {
+	nodes   map[Key]Node // 节点列表
+	expired bool         // 负载均衡队列过期标志
+	list    *list.List   // 负载均衡队列
 }
 
-// 重新均衡
-func (balancer *Bus) rebalance() {
+// 设置负载均衡过期
+func (bus *Bus) Expired() {
+	bus.expired = true
+}
 
-	loads := Loads{}
+// 插入节点
+func (bus *Bus) Insert(node Node) {
+	bus.expired = true
+	key := node.Info().Key
+	bus.nodes[key] = node
+}
 
-	for _, node := range balancer.nodes {
+// 删除节点
+func (bus *Bus) Remove(node Node) {
 
-		state, ok := node.Mesh().State()
+	info := node.Info()
+	id := info.ID
+	key := info.Key
+
+	// 查询保存节点
+	stored, ok := bus.nodes[key]
+	if !ok {
+		return
+	}
+
+	// 比对节点ID并删除
+	if id == stored.Info().ID {
+		bus.expired = true
+		delete(bus.nodes, key)
+	}
+}
+
+// 根据KEY查询节点
+func (bus *Bus) ByKey(key Key) Node {
+	return bus.nodes[key]
+}
+
+// 根据KEY列表查询节点列表
+func (bus *Bus) ByKeys(keys []Key) []Node {
+
+	var nodes []Node
+
+	for _, key := range keys {
+
+		node, ok := bus.nodes[key]
 		if !ok {
 			continue
 		}
 
+		nodes = append(nodes, node)
 	}
 
-	sort.Sort(loads)
-
-	balancer.balances = loads.Nodes()
+	return nodes
 }
 
-// 发送消息
-func (balancer *Bus) Balance(mail *proto.Mail) error {
+// 根据负载查询节点
+func (bus *Bus) ByLoad() Node {
 
-	if balancer.expired {
-		balancer.rebalance()
+	// 重新负载均衡
+	if bus.expired {
+		bus.list = balance(bus.nodes)
+		bus.expired = false
 	}
-	balancer.expired = false
 
-	return nil
-}
-
-// 随机发送消息
-func (balancer *Bus) Random(raw *proto.Mail) error {
-
-	node, ok := balancer.nodes[raw.Type]
-	if !ok {
+	list := bus.list
+	// 节点列表为空
+	if list.Len() == 0 {
 		return nil
 	}
 
-	mail.Copy()
+	// 删除头节点
+	front := list.Front()
+	node := list.Remove(front)
+	// 移动节点至尾部
+	list.PushBack(node)
+
+	return node.(Node)
 }
 
-//
-func (balancer *Bus) Key(key proto.NodeKey, mail *proto.Mail) error {
+// 查询节点列表
+func (bus *Bus) Nodes() []Node {
 
-	node, ok := balancer.nodes[key]
-	if !ok {
-		return fmt.Errorf("cannot find node by key %v", key)
+	var nodes []Node
+
+	for _, node := range bus.nodes {
+		nodes = append(nodes, node)
 	}
 
-	mail.Receivers = []*proto.Node{node.Info()}
-	return node.Push(mail)
+	return nodes
 }
-
-//
-func (balancer *Bus) Broadcast(origin *proto.Mail) error {
-
-	group := map[Mesh][]Node{}
-	for _, node := range balancer.nodes {
-		mesh := node.Mesh()
-		group[mesh] = append(group[mesh], node)
-	}
-
-	for mesh, nodes := range group {
-
-		var receivers []*proto.Node
-		for _, node := range nodes {
-			receivers = append(receivers, node.Info())
-		}
-	}
-
-	return nil
-}
-
-//

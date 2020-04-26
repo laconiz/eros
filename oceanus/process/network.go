@@ -12,54 +12,54 @@ import (
 	"time"
 )
 
-func (process *Process) NewInvoker() invoker.Invoker {
+func (proc *Process) NewInvoker() invoker.Invoker {
 
 	invoker := invoker.NewSocketInvoker()
 
-	invoker.Register(network.Connected{}, process.OnConnected)
-	invoker.Register(network.Disconnected{}, process.OnDisconnected)
-	invoker.Register(proto.Mail{}, process.OnMail)
-	invoker.Register(proto.State{}, process.OnState)
+	invoker.Register(network.Connected{}, proc.OnConnected)
+	invoker.Register(network.Disconnected{}, proc.OnDisconnected)
+	invoker.Register(proto.Mail{}, proc.OnMail)
+	invoker.Register(proto.State{}, proc.OnState)
 
-	invoker.Register(proto.MeshJoin{}, process.OnMeshJoin)
-	invoker.Register(proto.MeshQuit{}, process.OnMeshQuit)
-	invoker.Register(proto.NodeJoin{}, process.onNodeJoin)
-	invoker.Register(proto.NodeQuit{}, process.onNodeQuit)
+	invoker.Register(proto.MeshJoin{}, proc.OnMeshJoin)
+	invoker.Register(proto.MeshQuit{}, proc.OnMeshQuit)
+	invoker.Register(proto.NodeJoin{}, proc.onNodeJoin)
+	invoker.Register(proto.NodeQuit{}, proc.onNodeQuit)
 
 	return invoker
 }
 
-func (process *Process) NewSessionOption() socket.SessionOption {
+func (proc *Process) NewSessionOption() socket.SessionOption {
 	return socket.SessionOption{
 		Timeout: time.Second * 11,
 		Queue:   64,
-		Invoker: process.NewInvoker(),
+		Invoker: proc.NewInvoker(),
 		Encoder: encoder.NewNameMaker(),
 		Cipher:  cipher.NewEmptyMaker(),
 		Reader:  reader.NewSizeMaker(),
 	}
 }
 
-func (process *Process) NewAcceptor(addr string) network.Acceptor {
+func (proc *Process) NewAcceptor(addr string) network.Acceptor {
 
-	option := socket.AcceptorOption{
+	option := &socket.AcceptorOption{
 		Name:    "oceanus.acceptor",
 		Addr:    addr,
-		Session: process.NewSessionOption(),
+		Session: proc.NewSessionOption(),
 		Level:   logis.WARN,
 	}
 
 	return socket.NewAcceptor(option)
 }
 
-func (process *Process) NewConnector(addr string) network.Connector {
+func (proc *Process) NewConnector(addr string) network.Connector {
 
 	option := socket.ConnectorOption{
 		Name:      "oceanus.connector",
 		Addr:      addr,
 		Reconnect: true,
 		Delays:    []time.Duration{time.Millisecond},
-		Session:   process.NewSessionOption(),
+		Session:   proc.NewSessionOption(),
 		Level:     logis.WARN,
 	}
 
@@ -67,11 +67,11 @@ func (process *Process) NewConnector(addr string) network.Connector {
 	return connector
 }
 
-func (process *Process) broadcast(msg interface{}) {
+func (proc *Process) broadcast(msg interface{}) {
 
-	for _, mesh := range process.remotes {
+	for _, mesh := range proc.remotes {
 		if err := mesh.Send(msg); err != nil {
-			process.logger.Data(msg).Warn("send message failed")
+			proc.logger.Data(msg).Warn("send message failed")
 		}
 	}
 }

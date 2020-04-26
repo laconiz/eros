@@ -9,14 +9,14 @@ func NewInvoker(v interface{}) *Invoker {
 type Invoker struct {
 }
 
-func (i *Invoker) init() {
+func (inv *Invoker) init() {
 
 }
 
-func (i *Invoker) onMail(m *proto.Mail) {
+func (inv *Invoker) mail(mail *proto.Mail) {
 
 }
 
-func (i *Invoker) destroy() {
+func (inv *Invoker) destroy() {
 
 }

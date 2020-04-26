@@ -7,12 +7,12 @@ import (
 )
 
 // 网络连接时发送网格数据
-func (process *Process) OnConnected(event *network.Event) {
+func (proc *Process) OnConnected(event *network.Event) {
 
-	process.mutex.RLock()
-	defer process.mutex.RUnlock()
+	proc.mutex.RLock()
+	defer proc.mutex.RUnlock()
 
-	mesh := process.local
+	mesh := proc.local
 	state, _ := mesh.State()
 	event.Ses.Send(&proto.MeshJoin{
 		Mesh:  mesh.Info(),
@@ -20,11 +20,11 @@ func (process *Process) OnConnected(event *network.Event) {
 		Nodes: mesh.Nodes(),
 	})
 
-	process.logger.Info("join to remote")
+	proc.logger.Info("join to remote")
 }
 
 // 网络断开时更新网格状态
-func (process *Process) OnDisconnected(event *network.Event) {
+func (proc *Process) OnDisconnected(event *network.Event) {
 
 	value, ok := event.Ses.Get(sessionKey)
 	if !ok {
@@ -32,25 +32,39 @@ func (process *Process) OnDisconnected(event *network.Event) {
 	}
 	info := value.(*proto.Mesh)
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
-	if mesh, ok := process.remotes[info.ID]; ok {
+	if mesh, ok := proc.remotes[info.ID]; ok {
 		mesh.UpdateSession(nil)
 	}
 }
 
 // 处理消息
-func (process *Process) OnMail(event *network.Event) {
-	process.mutex.RLock()
-	defer process.mutex.RUnlock()
-	if err := process.local.Push(event.Msg.(*proto.Mail)); err != nil {
-		process.logger.Warnf("recv mail error: %v", err)
+func (proc *Process) OnMail(event *network.Event) {
+
+	mail := event.Msg.(*proto.Mail)
+
+	// PROXY RESPONSE
+	if len(mail.To) == 0 && mail.Reply != proto.EmptyRpcID {
+
+		proc.mutex.RLock()
+		defer proc.mutex.RUnlock()
+
+		if ch, ok := proc.channels[mail.Reply]; ok {
+			ch <- mail
+		}
+	}
+
+	proc.mutex.RLock()
+	defer proc.mutex.RUnlock()
+	if err := proc.local.Push(event.Msg.(*proto.Mail)); err != nil {
+		proc.logger.Warnf("recv mail error: %v", err)
 	}
 }
 
 // 网格状态
-func (process *Process) OnState(event *network.Event) {
+func (proc *Process) OnState(event *network.Event) {
 
 	value, ok := event.Ses.Get(sessionKey)
 	if !ok {
@@ -60,39 +74,39 @@ func (process *Process) OnState(event *network.Event) {
 
 	msg := event.Msg.(*proto.State)
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
-	if mesh, ok := process.remotes[info.ID]; ok {
+	if mesh, ok := proc.remotes[info.ID]; ok {
 		mesh.UpdateState(msg)
 		data := &proto.MeshJoin{Mesh: info, State: msg}
-		process.logger.Data(data).Info("remote mesh update")
+		proc.logger.Data(data).Info("remote mesh update")
 	}
 }
 
 // 插入网格
-func (process *Process) OnMeshJoin(event *network.Event) {
+func (proc *Process) OnMeshJoin(event *network.Event) {
 
 	msg := event.Msg.(*proto.MeshJoin)
 	event.Ses.Set(sessionKey, msg.Mesh)
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
-	mesh, ok := process.remotes[msg.Mesh.ID]
+	mesh, ok := proc.remotes[msg.Mesh.ID]
 	if !ok {
-		mesh = remote.NewMesh(msg.Mesh, msg.State, process.router)
-		process.remotes[msg.Mesh.ID] = mesh
+		mesh = remote.NewMesh(msg.Mesh, msg.State, proc.router)
+		proc.remotes[msg.Mesh.ID] = mesh
 	}
 
 	mesh.UpdateSession(event.Ses)
 	mesh.Insert(msg.Nodes)
 
-	process.logger.Data(msg).Info("remote mesh join")
+	proc.logger.Data(msg).Info("remote mesh join")
 }
 
 // 移除网格
-func (process *Process) OnMeshQuit(event *network.Event) {
+func (proc *Process) OnMeshQuit(event *network.Event) {
 
 	value, ok := event.Ses.Get(sessionKey)
 	if !ok {
@@ -100,24 +114,24 @@ func (process *Process) OnMeshQuit(event *network.Event) {
 	}
 	info := value.(*proto.Mesh)
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
-	if mesh, ok := process.remotes[info.ID]; ok {
+	if mesh, ok := proc.remotes[info.ID]; ok {
 		mesh.Destroy()
-		delete(process.remotes, info.ID)
-		process.logger.Data(info).Info("remote mesh quit")
+		delete(proc.remotes, info.ID)
+		proc.logger.Data(info).Info("remote mesh quit")
 	}
 
-	if connector, ok := process.connectors[info.ID]; ok {
+	if connector, ok := proc.connectors[info.ID]; ok {
 		connector.Stop()
-		delete(process.connectors, info.ID)
-		process.logger.Data(info.ID).Info("connector stopped")
+		delete(proc.connectors, info.ID)
+		proc.logger.Data(info.ID).Info("connector stopped")
 	}
 }
 
 // 插入节点
-func (process *Process) onNodeJoin(event *network.Event) {
+func (proc *Process) onNodeJoin(event *network.Event) {
 
 	value, ok := event.Ses.Get(sessionKey)
 	if !ok {
@@ -127,17 +141,17 @@ func (process *Process) onNodeJoin(event *network.Event) {
 
 	msg := event.Msg.(*proto.NodeJoin)
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
-	if mesh, ok := process.remotes[info.ID]; ok {
+	if mesh, ok := proc.remotes[info.ID]; ok {
 		mesh.Insert(msg.Nodes)
-		process.logger.Data(msg).Info("remote node join")
+		proc.logger.Data(msg).Info("remote node join")
 	}
 }
 
 // 移除节点
-func (process *Process) onNodeQuit(event *network.Event) {
+func (proc *Process) onNodeQuit(event *network.Event) {
 
 	value, ok := event.Ses.Get(sessionKey)
 	if !ok {
@@ -147,23 +161,23 @@ func (process *Process) onNodeQuit(event *network.Event) {
 
 	msg := event.Msg.(*proto.NodeQuit)
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
-	if mesh, ok := process.remotes[info.ID]; ok {
+	if mesh, ok := proc.remotes[info.ID]; ok {
 		mesh.Remove(msg.Nodes)
-		process.logger.Data(msg).Info("remote node quit")
+		proc.logger.Data(msg).Info("remote node quit")
 	}
 }
 
 // 广播状态
-func (process *Process) broadcastState() {
+func (proc *Process) broadcastState() {
 
-	process.mutex.RLock()
-	defer process.mutex.RUnlock()
+	proc.mutex.RLock()
+	defer proc.mutex.RUnlock()
 
-	state, _ := process.local.State()
-	process.broadcast(state)
+	state, _ := proc.local.State()
+	proc.broadcast(state)
 }
 
 const sessionKey = "mesh"

@@ -1,78 +1,93 @@
 package process
 
 import (
-	"encoding/hex"
-	"fmt"
 	"github.com/laconiz/eros/database/consul"
+	"github.com/laconiz/eros/database/consul/consulor"
 	"github.com/laconiz/eros/logis"
 	"github.com/laconiz/eros/logis/logisor"
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/encoder"
+	"github.com/laconiz/eros/oceanus/abstract"
 	"github.com/laconiz/eros/oceanus/local"
 	"github.com/laconiz/eros/oceanus/proto"
 	"github.com/laconiz/eros/oceanus/remote"
-	router2 "github.com/laconiz/eros/oceanus/router"
-	uuid "github.com/satori/go.uuid"
+	"github.com/laconiz/eros/oceanus/router"
 	"os"
 	"os/signal"
 	"sync"
 	"time"
 )
 
-var namespace = uuid.Must(uuid.FromString("4f31b82c-ca02-432c-afbf-8148c81ccaa2"))
+type RpcID = proto.RpcID
+type MeshID = proto.MeshID
+type Router = abstract.Router
+type Remotes = map[MeshID]*remote.Mesh
+type Channels = map[RpcID]chan interface{}
 
-// 创建一个进程
-func New(addr string) (*Process, error) {
+const module = "oceanus"
 
-	id := proto.MeshID(hex.EncodeToString(uuid.NewV3(namespace, addr).Bytes()))
+// 创建进程
+func New(addr string, encoder encoder.Encoder) (*Process, error) {
 
-	router := router2.NewRouter()
-
-	power, err := addrPower(addr)
-	if err != nil {
-		return nil, fmt.Errorf("get addr power error: %w", err)
+	proc := &Process{
+		remotes:  Remotes{},
+		router:   router.New(),
+		logger:   logisor.Module(module),
+		encoder:  encoder,
+		channels: Channels{},
 	}
 
-	info := &proto.Mesh{ID: id, Addr: addr, Power: power}
+	// 创建本地网格
+	info := &proto.Mesh{
+		ID:   MeshID(NewNamespaceUUID(addr, namespace)),
+		Addr: addr,
+	}
+	proc.local = local.New(info, proc)
 
-	return &Process{
-		local:      local.NewMesh(info, &proto.State{}, router),
-		remotes:    map[proto.MeshID]*remote.Mesh{},
-		connectors: map[proto.MeshID]network.Connector{},
-		router:     router,
-		logger:     logisor.Field(logis.Module, "oceanus"),
-	}, nil
+	// 创建网络侦听器
+	proc.acceptor = proc.NewAcceptor(addr)
+
+	// 创建同步器
+	synchronizer, err := consulor.Watcher().Prefix(prefix, proc.synchronize)
+	if err != nil {
+		return nil, err
+	}
+	proc.synchronizer = synchronizer
+
+	return proc, nil
 }
 
 type Process struct {
-	local      *local.Mesh                        // 本地网格数据
-	remotes    map[proto.MeshID]*remote.Mesh      // 远程网格列表
-	acceptor   network.Acceptor                   // 网络侦听器
-	connectors map[proto.MeshID]network.Connector // 网络连接器列表
-	router     *router2.Router                    // 路由器
-	logger     logis.Logger                       // 日志接口
-	mutex      sync.RWMutex
+	local        *local.Mesh      // 本地网格数据
+	remotes      Remotes          // 远程网格列表
+	acceptor     network.Acceptor // 网络侦听器
+	router       Router           // 路由器
+	logger       logis.Logger     // 日志接口
+	encoder      encoder.Encoder  // 邮件编码器
+	channels     Channels         // RPC CHANNEL列表
+	synchronizer *consul.Plan     // 网格同步器
+	mutex        sync.RWMutex
 }
 
-func (process *Process) Run() {
+func (proc *Process) Run() {
 
-	info := process.local.Info()
-	process.logger.Data(info).Info("starting")
+	info := proc.local.Info()
+	proc.logger.Data(info).Info("starting")
 
-	process.logger.Info("start acceptor")
-	process.acceptor = process.NewAcceptor(info.Addr)
-	process.acceptor.Run()
+	proc.logger.Info("start acceptor")
+	proc.acceptor = proc.NewAcceptor(info.Addr)
+	proc.acceptor.Run()
 
-	process.logger.Info("register to consul")
-	if err := process.register(); err != nil {
-		process.logger.Err(err).Error("register error")
+	proc.logger.Info("register to consul")
+	if err := proc.register(); err != nil {
+		proc.logger.Err(err).Error("register error")
 		return
 	}
 
-	process.logger.Info("watch consul")
-	watcher := process.watcher()
-	go watcher.Run()
+	proc.logger.Info("watch consul")
+	go proc.synchronizer.Run()
 
-	process.logger.Info("started")
+	proc.logger.Info("started")
 
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt, os.Kill)
@@ -83,49 +98,49 @@ func (process *Process) Run() {
 	for {
 		select {
 		case <-ticker.C:
-			process.broadcastState()
+			proc.broadcastState()
 		case <-exit:
 			goto BREAK
 		}
 	}
 
 BREAK:
-	process.stop(watcher)
+	proc.stop(watcher)
 }
 
-func (process *Process) stop(watcher *consul.Plan) {
+func (proc *Process) stop(watcher *consul.Plan) {
 
-	process.logger.Info("stopping")
+	proc.logger.Info("stopping")
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
-	process.logger.Info("destroy remote meshes")
-	for _, mesh := range process.remotes {
-		mesh.Send(&proto.MeshQuit{Mesh: process.local.Info()})
+	proc.logger.Info("destroy remote meshes")
+	for _, mesh := range proc.remotes {
+		mesh.Send(&proto.MeshQuit{Mesh: proc.local.Info()})
 		mesh.Destroy()
 	}
-	process.remotes = map[proto.MeshID]*remote.Mesh{}
+	proc.remotes = map[proto.MeshID]*remote.Mesh{}
 
-	process.logger.Info("clear connectors")
-	for _, connector := range process.connectors {
+	proc.logger.Info("clear connectors")
+	for _, connector := range proc.connectors {
 		connector.Stop()
 	}
-	process.connectors = map[proto.MeshID]network.Connector{}
+	proc.connectors = map[proto.MeshID]network.Connector{}
 
-	process.logger.Info("unwatch consul")
+	proc.logger.Info("unwatch consul")
 	watcher.Stop()
 
-	process.logger.Info("deregister from consul")
-	if err := process.deregister(); err != nil {
-		process.logger.Err(err).Error("deregister error")
+	proc.logger.Info("deregister from consul")
+	if err := proc.deregister(); err != nil {
+		proc.logger.Err(err).Error("deregister error")
 	}
 
-	process.logger.Info("stop acceptor")
-	process.acceptor.Stop()
+	proc.logger.Info("stop acceptor")
+	proc.acceptor.Stop()
 
-	process.logger.Info("destroy local mesh")
-	process.local.Destroy()
+	proc.logger.Info("destroy local mesh")
+	proc.local.Destroy()
 
-	process.logger.Info("stopped")
+	proc.logger.Info("stopped")
 }

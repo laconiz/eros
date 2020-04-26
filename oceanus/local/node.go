@@ -19,48 +19,46 @@ func NewNode(pn *proto.Node, m *Mesh, h interface{}) *Node {
 	}
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-
 type Node struct {
-	info    *proto.Node  // 节点信息
-	mesh    *Mesh        // 所属网格
-	invoker *Invoker     // 调用器
-	queue   *queue.Queue // 消息队列
+	info    *proto.Node
+	mesh    *Mesh
+	queue   *queue.Queue
+	invoker *Invoker
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-
-func (n *Node) Info() *proto.Node {
-	return n.info
+func (node *Node) Info() *proto.Node {
+	return node.info
 }
 
-func (n *Node) Mesh() router.Mesh {
-	return n.mesh
+func (node *Node) Mesh() router.Mesh {
+	return node.mesh
 }
 
-func (n *Node) Mail(mail *proto.Mail) error {
-	return n.queue.Add(mail)
+func (node *Node) Mail(mail *proto.Mail) error {
+	return node.queue.Add(mail)
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-
-func (n *Node) Destroy() {
-	n.queue.Close()
+func (node *Node) Destroy() {
+	node.queue.Close()
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
+func (node *Node) run() {
 
-func (n *Node) run() {
+	defer func() {
+		if err := recover(); err != nil {
+			node.mesh.logger.Data(err).Error("invoke error")
+		}
+	}()
 
-	n.invoker.init()
+	node.invoker.init()
 
 	for {
 
-		msgs, closed := n.queue.Pick()
+		events, closed := node.queue.Pick()
 
-		for _, msg := range msgs {
-			mail := msg.(*proto.Mail)
-			n.invoker.onMail(mail)
+		for _, event := range events {
+			mail := event.(*proto.Mail)
+			node.invoker.mail(mail)
 		}
 
 		if closed {
@@ -68,5 +66,5 @@ func (n *Node) run() {
 		}
 	}
 
-	n.invoker.destroy()
+	node.invoker.destroy()
 }

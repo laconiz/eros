@@ -1,12 +1,15 @@
 package chat
 
-import "github.com/laconiz/eros/oceanus"
+import (
+	"github.com/laconiz/eros/oceanus"
+	"github.com/laconiz/eros/oceanus/proto"
+)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 type Room struct {
-	id      RoomID                    // 房间ID
-	users   map[UserID]oceanus.NodeID // 用户列表
+	id      RoomID                  // 房间ID
+	users   map[UserID]proto.NodeID // 用户列表
 	process oceanus.Oceanus
 }
 
@@ -27,7 +30,7 @@ func (room *Room) Proto() *RoomACK {
 
 func (room *Room) Broadcast(msg interface{}) {
 
-	var list []oceanus.NodeID
+	var list []proto.NodeID
 	for _, id := range room.users {
 		list = append(list, id)
 	}

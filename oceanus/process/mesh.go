@@ -6,23 +6,23 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func (process *Process) NewKeyNode(typo proto.NodeType, key proto.NodeKey, invoker interface{}) error {
+func (proc *Process) NewKeyNode(typo proto.NodeType, key proto.NodeKey, invoker interface{}) error {
 
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
+	proc.mutex.Lock()
+	defer proc.mutex.Unlock()
 
 	id := proto.NodeID(hex.EncodeToString(uuid.NewV1().Bytes()))
-	info := &proto.Node{ID: id, Type: typo, Key: key, Mesh: process.local.Info().ID}
+	info := &proto.Node{ID: id, Type: typo, Key: key, Mesh: proc.local.Info().ID}
 
-	_, err := process.local.Insert(info, invoker)
+	_, err := proc.local.Insert(info, invoker)
 	if err != nil {
 		return err
 	}
 
-	process.broadcast(&proto.NodeJoin{Nodes: []*proto.Node{info}})
+	proc.broadcast(&proto.NodeJoin{Nodes: []*proto.Node{info}})
 	return nil
 }
 
-func (process *Process) NewTypeNode(typo proto.NodeType, invoker interface{}) error {
-	return process.NewKeyNode(typo, proto.NodeKey(hex.EncodeToString(uuid.NewV1().Bytes())), invoker)
+func (proc *Process) NewTypeNode(typo proto.NodeType, invoker interface{}) error {
+	return proc.NewKeyNode(typo, proto.NodeKey(hex.EncodeToString(uuid.NewV1().Bytes())), invoker)
 }
