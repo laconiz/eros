@@ -31,6 +31,7 @@ func New(info *proto.Mesh, process abstract.Process) *Mesh {
 	// 创建客户端连接
 	if lp >= rp && (lp-rp)%2 == 0 ||
 		rp > lp && (rp-lp)%2 != 0 {
+
 		mesh.connector = process.NewConnector(info.Addr)
 		go mesh.connector.Run()
 	}
@@ -110,6 +111,12 @@ func (mesh *Mesh) Destroy() {
 
 	for _, node := range mesh.nodes {
 		node.Destroy()
+	}
+
+	// 删除连接
+	if mesh.connector != nil {
+		mesh.connector.Stop()
+		mesh.connector = nil
 	}
 
 	mesh.nodes = map[proto.NodeID]*Node{}

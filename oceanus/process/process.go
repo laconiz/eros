@@ -69,6 +69,18 @@ type Process struct {
 	mutex        sync.RWMutex
 }
 
+func (proc *Process) Local() abstract.Mesh {
+	return proc.local
+}
+
+func (proc *Process) Router() abstract.Router {
+	return proc.router
+}
+
+func (proc *Process) Logger() logis.Logger {
+	return proc.logger
+}
+
 func (proc *Process) Run() {
 
 	info := proc.local.Info()

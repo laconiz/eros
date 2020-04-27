@@ -2,23 +2,85 @@ package process
 
 import (
 	"github.com/laconiz/eros/network"
+	"github.com/laconiz/eros/network/invoker"
 	"github.com/laconiz/eros/oceanus/proto"
 	"github.com/laconiz/eros/oceanus/remote"
 )
 
+func (proc *Process) networkInvoker() invoker.Invoker {
+
+	invoker := invoker.NewSocketInvoker()
+
+	// 连接建立
+	invoker.Register(network.Connected{}, func(event *network.Event) {
+
+		session := event.Ses
+
+		proc.mutex.Lock()
+		defer proc.mutex.Unlock()
+
+		mesh := proc.local
+		state, _ := mesh.State()
+
+		// 发送网格信息
+		session.Send(&proto.MeshJoin{Mesh: mesh.Info()})
+		// 发送网格状态
+		session.Send(state)
+		// 发送节点列表
+		session.Send(&proto.NodeJoin{Nodes: mesh.Nodes()})
+	})
+
+	// 连接断开
+	invoker.Register(network.Disconnected{}, func(event *network.Event) {
+
+	})
+
+	// 网格状态
+	invoker.Register(proto.State{}, func(event *network.Event) {
+
+	})
+
+	// 收到邮件
+	invoker.Register(proto.Mail{}, func(event *network.Event) {
+
+	})
+
+	// 网格加入
+	invoker.Register(proto.MeshJoin{}, func(event *network.Event) {
+
+	})
+
+	// 网格退出
+	invoker.Register(proto.MeshQuit{}, func(event *network.Event) {
+
+	})
+
+	// 节点加入
+	invoker.Register(proto.NodeJoin{}, func(event *network.Event) {
+
+	})
+
+	// 节点退出
+	invoker.Register(proto.NodeQuit{}, func(event *network.Event) {
+
+	})
+
+	return invoker
+}
+
 // 网络连接时发送网格数据
 func (proc *Process) OnConnected(event *network.Event) {
+
+	session := event.Ses
 
 	proc.mutex.RLock()
 	defer proc.mutex.RUnlock()
 
 	mesh := proc.local
 	state, _ := mesh.State()
-	event.Ses.Send(&proto.MeshJoin{
-		Mesh:  mesh.Info(),
-		State: state,
-		Nodes: mesh.Nodes(),
-	})
+	session.Send(&proto.MeshJoin{Mesh: mesh.Info()})
+	session.Send(state)
+	session.Send(&proto.NodeJoin{Nodes: mesh.Nodes()})
 
 	proc.logger.Info("join to remote")
 }

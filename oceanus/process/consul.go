@@ -2,32 +2,12 @@ package process
 
 import (
 	"github.com/hashicorp/consul/api"
-	"github.com/laconiz/eros/database/consul/consulor"
 	"github.com/laconiz/eros/oceanus/proto"
 	"github.com/laconiz/eros/oceanus/remote"
 	"github.com/laconiz/eros/utils/json"
 )
 
 const prefix = "oceanus/meshes/"
-
-// 开始同步器
-func (proc *Process) runSynchronizer() {
-
-	proc.mutex.RLock()
-	proc.mutex.RUnlock()
-
-	proc.synchronizer.Stop()
-	go proc.synchronizer.Run()
-}
-
-// 停止同步器
-func (proc *Process) stopSynchronizer() {
-
-	proc.mutex.RLock()
-	defer proc.mutex.RUnlock()
-
-	proc.synchronizer.Stop()
-}
 
 // 同步网格
 func (proc *Process) synchronize(_ uint64, value interface{}) {
@@ -93,14 +73,4 @@ func (proc *Process) synchronize(_ uint64, value interface{}) {
 		delete(proc.remotes, id)
 		proc.logger.Data(info).Info("mesh destroyed")
 	}
-}
-
-func (proc *Process) register() error {
-	info := proc.local.Info()
-	return consulor.KV().Store(string(prefix+info.ID), info.Addr)
-}
-
-func (proc *Process) deregister() error {
-	info := proc.local.Info()
-	return consulor.KV().Delete(string(prefix + info.ID))
 }
