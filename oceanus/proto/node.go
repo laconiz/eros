@@ -22,8 +22,8 @@ type NodeJoin struct {
 }
 
 type NodeQuit struct {
-	Nodes []NodeID `json:"nodes"`
-	State *State   `json:"state"`
+	Nodes []*Node `json:"nodes"`
+	State *State  `json:"state"`
 }
 
 func init() {
