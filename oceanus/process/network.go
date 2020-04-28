@@ -88,8 +88,8 @@ func (proc *Process) networkInvoker() invoker.Invoker {
 		// 更新状态
 		if mesh, ok := proc.remotes[info.ID]; ok {
 			mesh.UpdateState(state)
-			data := &State{Mesh: info, State: state}
-			proc.logger.Data(data).Info("state updated")
+			// data := &State{Mesh: info, State: state}
+			// proc.logger.Data(data).Info("state updated")
 		}
 	})
 
@@ -132,7 +132,7 @@ func (proc *Process) networkInvoker() invoker.Invoker {
 
 		// 更新连接信息
 		mesh.UpdateSession(event.Ses)
-		proc.logger.Data(info).Info("connected")
+		proc.logger.Data(info).Info("mesh join")
 	})
 
 	// 网格退出
@@ -237,7 +237,12 @@ func (proc *Process) NewConnector(addr string) network.Connector {
 		Name:      "oceanus.connector",
 		Addr:      addr,
 		Reconnect: true,
-		Delays:    []time.Duration{time.Millisecond},
+		Delays: []time.Duration{
+			time.Millisecond,
+			time.Millisecond * 100,
+			time.Millisecond * 500,
+			time.Second,
+		},
 		Session: socket.SessionOption{
 			Timeout: time.Second * 11,
 			Queue:   64,

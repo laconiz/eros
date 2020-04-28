@@ -11,7 +11,7 @@ import (
 )
 
 // 创建远程网格
-func New(info *proto.Mesh, process abstract.Process) *Mesh {
+func New(info *proto.Mesh, proc abstract.Process) *Mesh {
 
 	mesh := &Mesh{
 		info:  info,
@@ -25,14 +25,15 @@ func New(info *proto.Mesh, process abstract.Process) *Mesh {
 	hash.Write([]byte(info.Addr))
 	rp := hash.Sum32()
 	hash.Reset()
-	hash.Write([]byte(process.Local().Info().Addr))
+	hash.Write([]byte(proc.Local().Info().Addr))
 	lp := hash.Sum32()
 
 	// 创建客户端连接
 	if lp >= rp && (lp-rp)%2 == 0 ||
 		rp > lp && (rp-lp)%2 != 0 {
 
-		mesh.connector = process.NewConnector(info.Addr)
+		proc.Logger().Data(info.Addr).Info("connect to")
+		mesh.connector = proc.NewConnector(info.Addr)
 		go mesh.connector.Run()
 	}
 
@@ -79,6 +80,16 @@ func (mesh *Mesh) Mail(mail *proto.Mail) error {
 	}
 
 	return mesh.session.Send(mail)
+}
+
+// 发送消息
+func (mesh *Mesh) Send(msg interface{}) error {
+
+	if mesh.session == nil {
+		return oceanus.ErrDisconnected
+	}
+
+	return mesh.session.Send(msg)
 }
 
 // 更新网格状态

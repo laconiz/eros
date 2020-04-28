@@ -17,13 +17,13 @@ type Node struct {
 }
 
 type NodeJoin struct {
-	Nodes []*Node `json:"nodes"`
-	State *State  `json:"state"`
+	Nodes []*Node `json:"nodes,omitempty"`
+	State *State  `json:"state,omitempty"`
 }
 
 type NodeQuit struct {
-	Nodes []*Node `json:"nodes"`
-	State *State  `json:"state"`
+	Nodes []*Node `json:"nodes,omitempty"`
+	State *State  `json:"state,omitempty"`
 }
 
 func init() {

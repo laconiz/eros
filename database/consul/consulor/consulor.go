@@ -15,7 +15,7 @@ func Watcher() *consul.Watcher {
 
 var client *consul.Consul
 
-const defaultAddr = "192.168.0.110:8500"
+const defaultAddr = "127.0.0.1:8500"
 
 func init() {
 

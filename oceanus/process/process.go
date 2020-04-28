@@ -13,8 +13,6 @@ import (
 	"github.com/laconiz/eros/oceanus/proto"
 	"github.com/laconiz/eros/oceanus/remote"
 	"github.com/laconiz/eros/oceanus/router"
-	"os"
-	"os/signal"
 	"sync"
 	"time"
 )
@@ -36,6 +34,7 @@ func New(addr string, encoder encoder.Encoder) (*Process, error) {
 		logger:   logisor.Module(module),
 		encoder:  encoder,
 		channels: Channels{},
+		signal:   make(chan bool, 1),
 	}
 
 	// 创建本地网格
@@ -71,7 +70,7 @@ type Process struct {
 	encoder      encoder.Encoder  // 邮件编码器
 	channels     Channels         // RPC CHANNEL列表
 	synchronizer *consul.Plan     // 网格同步器
-	ticker       *time.Ticker     // 心跳计时器
+	signal       chan bool        // 退出信号
 	mutex        sync.RWMutex
 }
 
@@ -103,58 +102,49 @@ func (proc *Process) Run() {
 		return
 	}
 
-	proc.logger.Info("watch consul")
+	proc.logger.Info("start synchronizer")
 	go proc.synchronizer.Run()
 
+	proc.logger.Info("start tick")
+	go proc.tick()
+
 	proc.logger.Info("started")
-
-	proc.ticker = time.NewTicker(time.Second * 10)
-	go func() {
-
-	}()
 }
 
-func (proc *Process) stop(watcher *consul.Plan) {
+func (proc *Process) Stop() {
 
 	proc.logger.Info("stopping")
 
 	proc.mutex.Lock()
 	defer proc.mutex.Unlock()
 
+	info := proc.local.Info()
+
 	// 关闭定时器
-	if proc.ticker != nil {
-		proc.ticker.Stop()
-	}
+	proc.logger.Info("stop tick")
+	proc.signal <- true
 
 	// 关闭同步器
+	proc.logger.Info("stop synchronizer")
 	proc.synchronizer.Stop()
-	proc.logger.Info("synchronizer stopped")
 
 	// 清理远程网格
+	proc.logger.Info("destroy remote meshes")
+	msg := &proto.MeshQuit{ID: info.ID}
 	for _, mesh := range proc.remotes {
+		// 发送网格退出消息
+		mesh.Send(msg)
+		// 清理网格
 		mesh.Destroy()
 	}
 	proc.remotes = Remotes{}
-	proc.logger.Info("remote meshes destroyed")
 
-	proc.logger.Info("destroy remote meshes")
-	for _, mesh := range proc.remotes {
-		mesh.Send(&proto.MeshQuit{Mesh: proc.local.Info()})
-		mesh.Destroy()
-	}
-	proc.remotes = map[proto.MeshID]*remote.Mesh{}
-
-	proc.logger.Info("clear connectors")
-	for _, connector := range proc.connectors {
-		connector.Stop()
-	}
-	proc.connectors = map[proto.MeshID]network.Connector{}
-
-	proc.logger.Info("unwatch consul")
-	watcher.Stop()
+	proc.logger.Info("stop synchronizer")
+	proc.synchronizer.Stop()
 
 	proc.logger.Info("deregister from consul")
-	if err := proc.deregister(); err != nil {
+	err := consulor.KV().Delete(prefix + string(info.ID))
+	if err != nil {
 		proc.logger.Err(err).Error("deregister error")
 	}
 
@@ -165,4 +155,40 @@ func (proc *Process) stop(watcher *consul.Plan) {
 	proc.local.Destroy()
 
 	proc.logger.Info("stopped")
+}
+
+func (proc *Process) tick() {
+
+	sender := func() {
+
+		proc.mutex.RLock()
+		defer proc.mutex.RUnlock()
+
+		state, _ := proc.local.State()
+
+		for _, mesh := range proc.remotes {
+			mesh.Send(state)
+		}
+	}
+
+	ticker := time.NewTicker(time.Second * 10)
+
+	for {
+		select {
+		case <-proc.signal:
+			return
+		case <-ticker.C:
+			sender()
+		}
+	}
+}
+
+func (proc *Process) broadcast(msg interface{}) {
+
+	proc.mutex.RLock()
+	defer proc.mutex.RUnlock()
+
+	for _, mesh := range proc.remotes {
+		mesh.Send(msg)
+	}
 }

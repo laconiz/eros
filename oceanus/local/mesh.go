@@ -63,7 +63,7 @@ func (mesh *Mesh) Mail(mail *proto.Mail) error {
 
 func (mesh *Mesh) Destroy() {
 
-	for id, node := range mesh.nodes {
+	for _, node := range mesh.nodes {
 		node.Destroy()
 	}
 
@@ -72,8 +72,8 @@ func (mesh *Mesh) Destroy() {
 }
 
 //
-func (mesh *Mesh) Create(ni proto.Node, handler interface{}) *Node {
-
+func (mesh *Mesh) Create(info proto.Node, handler interface{}) *Node {
+	return &Node{}
 }
 
 //

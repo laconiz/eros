@@ -48,6 +48,7 @@ func (proc *Process) synchronize(_ uint64, value interface{}) {
 		}
 
 		// 新建网格
+		proc.logger.Data(info).Info("new mesh")
 		mesh := remote.New(info, proc)
 		proc.remotes[info.ID] = mesh
 	}
