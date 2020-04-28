@@ -8,7 +8,6 @@ import (
 	"github.com/laconiz/eros/oceanus/example/model/db/elasticMgr"
 	"github.com/laconiz/eros/oceanus/example/model/db/redisMgr"
 	"github.com/laconiz/eros/oceanus/example/proto"
-	"github.com/robfig/cron"
 	"time"
 )
 
@@ -100,11 +99,11 @@ func init() {
 	// TODO 更新物品改变日志索引别名
 
 	// TODO 创建基于日期的新物品改变日志索引
-	schedule := cron.New()
-	schedule.AddFunc("59 23 * * *", func() {
-		// rds.Singleton().Exec()
-	})
-	schedule.Run()
+	// schedule := cron.New()
+	// schedule.AddFunc("59 23 * * *", func() {
+	// 	ds.Singleton().Exec()
+	// })
+	// schedule.Run()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

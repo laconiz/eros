@@ -5,19 +5,19 @@ import "github.com/laconiz/eros/network/message"
 // ---------------------------------------------------------------------------------------------------------------------
 // 物品ID
 
-type ItemID uint32
+type ItemID string
 
 const (
-	ItemCoin   ItemID = 1 // 金币
-	ItemTicket ItemID = 2 // 券
+	ItemCoin   ItemID = "coin"   // 金币
+	ItemTicket ItemID = "ticket" // 券
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
 // 物品定义
 
 type Item struct {
-	ID  ItemID `json:"id"`  // 物品ID
-	Num int64  `json:"num"` // 物品数量
+	ID  ItemID // ID
+	Num int64  // 数量
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -25,47 +25,50 @@ type Item struct {
 
 type ItemMap map[ItemID]int64
 
-func (m ItemMap) Slice() ItemSlice {
-	s := ItemSlice{}
-	for id, num := range m {
-		s = append(s, &Item{ID: id, Num: num})
+func (hash ItemMap) Slice() ItemSlice {
+
+	slice := ItemSlice{}
+
+	for id, num := range hash {
+		item := &Item{ID: id, Num: num}
+		slice = append(slice, item)
 	}
-	return s
+
+	return slice
 }
 
 type ItemSlice []*Item
 
-func (s ItemSlice) Map() ItemMap {
-	m := ItemMap{}
-	for _, item := range s {
-		m[item.ID] = item.Num
+func (slice ItemSlice) Map() ItemMap {
+
+	hash := ItemMap{}
+
+	for _, item := range slice {
+		hash[item.ID] = item.Num
 	}
-	return m
+
+	return hash
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // 物品变化类型
 
-type ItemChangeReason uint32
+type ItemChangeReason string
 
 const (
-	ItemChangeByAdmin ItemChangeReason = 1001 // 后台修改
-	ItemChangeByMail  ItemChangeReason = 1002 // 邮件修改
+	ItemChangeByAdmin ItemChangeReason = "admin" // 后台修改
+	ItemChangeByMail  ItemChangeReason = "mail"  // 邮件修改
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
 // 物品列表消息
 
-type ItemListREQ struct {
-}
-
-type ItemListACK struct {
-	Items ItemSlice `json:"items,omitempty"`
+type ItemsACK struct {
+	Items ItemMap `json:"items,omitempty"`
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 func init() {
-	message.Register(ItemListREQ{}, message.JsonCodec())
-	message.Register(ItemListACK{}, message.JsonCodec())
+	message.Register(ItemsACK{}, message.JsonCodec())
 }

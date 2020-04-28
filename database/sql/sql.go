@@ -5,13 +5,14 @@ import (
 	"time"
 )
 
+// 连接参数
 type Option struct {
-	Dialect     string
-	Arg         string
-	MaxConn     int
-	IdleConn    int
-	LifeSeconds int
-	SingleTable bool
+	Dialect     string // 连接类型
+	Arg         string // 连接参数
+	MaxConn     int    // 最大连接数
+	IdleConn    int    // 空闲连接数
+	LifeSeconds int    // 连接生命期
+	SingleTable bool   // 表命名规则
 }
 
 func New(option *Option) (*gorm.DB, error) {

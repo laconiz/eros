@@ -10,6 +10,10 @@ import (
 type ItemID = proto.ItemID
 type ItemChangeReason = proto.ItemChangeReason
 
+const (
+	ItemCoin = proto.ItemCoin
+)
+
 // ---------------------------------------------------------------------------------------------------------------------
 // 物品变化日志 ELASTIC
 

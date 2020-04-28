@@ -1,7 +1,7 @@
 package itemMgr
 
 import (
-	"github.com/laconiz/eros/oceanus/example/model"
+	"github.com/laconiz/eros/oceanus/example/proto"
 	"testing"
 )
 
@@ -11,7 +11,7 @@ func TestChange(t *testing.T) {
 
 	rds.Key().Delete(key(defaultUser))
 
-	latest, success, err := Change(defaultUser, model.Coin, 100, model.ChangeByAdmin)
+	latest, success, err := Change(defaultUser, proto.ItemCoin, 100, proto.ItemChangeByAdmin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +19,7 @@ func TestChange(t *testing.T) {
 		t.Fatal(latest, success)
 	}
 
-	latest, success, err = Change(defaultUser, model.Coin, -50, model.ChangeByAdmin)
+	latest, success, err = Change(defaultUser, proto.ItemCoin, -50, proto.ItemChangeByAdmin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestChange(t *testing.T) {
 		t.Fatal(latest, success)
 	}
 
-	latest, success, err = Change(defaultUser, model.Coin, -100, model.ChangeByAdmin)
+	latest, success, err = Change(defaultUser, proto.ItemCoin, -100, proto.ItemChangeByAdmin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestChange(t *testing.T) {
 
 func TestNum(t *testing.T) {
 
-	latest, err := Num(defaultUser, model.Coin)
+	latest, err := Num(defaultUser, proto.ItemCoin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestNum(t *testing.T) {
 		t.Fatal(latest)
 	}
 
-	latest, err = Num(defaultUser, model.Ticket)
+	latest, err = Num(defaultUser, proto.ItemTicket)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestItems(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(items) != 1 || items[model.Coin] != 50 {
+	if len(items) != 1 || items[proto.ItemCoin] != 50 {
 		t.Fatalf("%#v", items)
 	}
 }

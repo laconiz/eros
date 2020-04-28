@@ -1,18 +1,47 @@
+// 命令行参数解析
 package command
 
 import (
+	"fmt"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
+// 从参数中获取合法的IP地址及端口
+func ParseAddress(name string, value string) (string, error) {
+
+	addr, ok := parse(name)
+	if !ok {
+		addr = name
+	}
+
+	items := strings.Split(addr, ":")
+	if len(items) != 2 {
+		return "", fmt.Errorf("invalid address[%s]", addr)
+	}
+
+	if ip := net.ParseIP(items[0]); ip == nil {
+		return "", fmt.Errorf("invalid ip[%s]", items[0])
+	}
+
+	port, err := strconv.Atoi(items[1])
+	if err != nil || port < 0 || port > 65535 {
+		return "", fmt.Errorf("invalid port[%s]", items[1])
+	}
+
+	return addr, nil
+}
+
 func ParseStringArg(name string, value string) string {
-	if str, ok := parseArg(name); ok {
+	if str, ok := parse(name); ok {
 		return str
 	}
 	return value
 }
 
-func parseArg(name string) (string, bool) {
+func parse(name string) (string, bool) {
 
 	unix := "-" + name
 	gnu := "--" + name
