@@ -21,6 +21,5 @@ namespace proto {
     export class ItemsACK {
         Items : Items;
     }
-
-    Register("ItemsACK", ItemsACK)
+    Register("ItemsACK", ItemsACK);
 }

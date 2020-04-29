@@ -27,7 +27,7 @@ func (service *Service) OnEnter(userID UserID, req *EnterREQ) {
 		return
 	}
 
-	room.users[userID] = 
+	// room.users[userID] =
 }
 
 func (service *Service) OnSpeak(userID UserID, req *SpeakREQ) {

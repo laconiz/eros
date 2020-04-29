@@ -2,22 +2,13 @@ namespace proto {
 
     let messages : Map<string, any>
 
-    // 注册消息
-    export function Register(msg : any) {
-        let name = meta(()=>msg);
-        messages[name] = msg;
+    export interface Message {
+        Meta() : string;
     }
 
-    let extractor = new RegExp("return (.*);");
+    // 注册消息
+    export function Register(name : string, type : any) {
 
-    function meta<T>(name : ()=>T) {
-
-        let array = extractor.exec(name + "");
-        if (array == null) {
-            throw new Error("function not match");
-        }
-
-        return array[1];
     }
 
     const separator : string = "-"

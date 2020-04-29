@@ -19,6 +19,7 @@ func (e *Elastic) Insert(v interface{}) error {
 	if _, err = e.Index().Index(index).Type(doc).BodyJson(v).Do(context.Background()); err != nil {
 		return fmt.Errorf("insert document error: %w", err)
 	}
+
 	return nil
 }
 
